@@ -8,13 +8,32 @@ datasource db {
 }
 
 model User {
-  id        Int   @id @default(autoincrement())
-  role      Role   @default(USER)
+  id        Int      @id @default(autoincrement())
+  role      Role     @default(USER)
   nickname  String
-  password  String 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  password  String
+  clientId  String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 }
+
+model Post {
+  postId       Int      @id @default(autoincrement())
+  groupId      Int
+  userId       Int
+  nickname     String
+  title        String
+  content      String
+  imageUrl     String
+  location     String
+  moment       DateTime
+  isPublic     Boolean
+  createdAt    DateTime @default(now())
+  likeCount    Int      @default(0)
+  commentCount Int      @default(0)
+  tag          Json
+}
+
 enum Role {
   USER
   ADMIN
