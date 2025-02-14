@@ -88,9 +88,7 @@ router.get("/:groupId/posts", async (req, res, next) => {
       orderBy = { commentCount: "desc" };
     } else if (sortBy === "mostLiked") {
       orderBy = { likeCount: "desc" };
-    } else if (sortBy === "mostComment") {
-      orderBy = {commentCount: "desc"};
-    }
+    } 
 
     const whereClause = { groupId: parseInt(groupId) };
 
