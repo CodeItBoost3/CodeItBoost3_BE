@@ -15,13 +15,15 @@ model User {
   clientId  String   @unique
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+
+  posts     Post[]   @relation("UserPosts") 
 }
 
 
 model Post {
   postId       Int      @id @default(autoincrement()) 
   groupId      Int
-  clientId     String  
+  clientId     String  @default("test_client")
   nickname     String
   title        String
   content      String
@@ -34,7 +36,7 @@ model Post {
   commentCount Int      @default(0)
   tag          Json
 
-   user        User     @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+ user        User     @relation("UserPosts", fields: [clientId], references: [clientId], onDelete: Cascade)
 }
 
 enum Role {
