@@ -17,21 +17,24 @@ model User {
   updatedAt DateTime @updatedAt @map("updated_at")
 }
 
+
 model Post {
-  postId       Int      @id @default(autoincrement())
+  postId       Int      @id @default(autoincrement()) 
   groupId      Int
-  userId       Int
+  clientId     String  
   nickname     String
   title        String
   content      String
   imageUrl     String
   location     String
   moment       DateTime
-  isPublic     Boolean
-  createdAt    DateTime @default(now())
+  isPublic     Boolean  @default(true)
+  createdAt    DateTime @default(now()) 
   likeCount    Int      @default(0)
   commentCount Int      @default(0)
   tag          Json
+
+   user        User     @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
 }
 
 enum Role {
