@@ -7,14 +7,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        Int      @id @default(autoincrement())
-  role      Role     @default(USER)
-  nickname  String
-  password  String
-  clientId  String   @unique
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+model user {
+  id              Int      @id @default(autoincrement())
+  role            Role     @default(USER)
+  nickname        String
+  password        String
+  clientId        String   @unique @map("client_id")
+  profileImageUrl String?  @map("profile_image_url")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 }
 
 model Post {
