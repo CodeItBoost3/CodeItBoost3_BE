@@ -3,16 +3,18 @@ import { prisma } from '../../app.js';
 import bcrypt from 'bcrypt';
 import { errorHandler, CustomError } from '../../error/error.js'
 import jwt from 'jsonwebtoken';
+import { wrapAsync } from '../../app.js';
 
 
 const authRouter = express.Router()
 
 
-authRouter.post('/login', errorHandler(async (req, res, next) =>{
+authRouter.post('/login', wrapAsync(async (req, res, next) =>{
   const { clientId, password } = req.body;
   // 1. ID 등록 확인
   const user = await prisma.user.findUnique({
     select: {
+      id: true,
       password: true,
       role: true,
     },
@@ -43,7 +45,7 @@ authRouter.post('/login', errorHandler(async (req, res, next) =>{
 }))
 
 function generateToken(user) {
-  console.log(process.env.TOKEN_EXPIRATION);
+  console.log(user)
   return jwt.sign(
       { id: user.id, role: user.role },  
       process.env.JWT_SECRET,  
