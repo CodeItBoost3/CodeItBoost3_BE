@@ -3,14 +3,11 @@ dotenv.config();
 import express from "express";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { assert } from "superstruct";
-import commentRouter from "./router/comment.js";
+import userRouter from "./user/routes/user.js";
+import authRouter from "./auth/routes/auth.js";
+import commentRouter from "./comment/routes/comment.js";
 
-const prisma = new PrismaClient();
-
-const app = express();
-app.use(express.json());
-
-app.use("/api", commentRouter);
+export const prisma = new PrismaClient();
 
 async function checkDBConnection() {
   try {
@@ -25,8 +22,11 @@ async function checkDBConnection() {
 
 checkDBConnection();
 
-// 서버 실행
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 서버가 http://localhost:${PORT}에서 실행 중입니다.`);
-});
+const app = express();
+app.use(express.json());
+
+app.use("/users", userRouter);
+app.use("/auth", authRouter);
+app.use("/api", commentRouter);
+
+app.listen(process.env.PORT || 3000, () => console.log("Server Started"));
