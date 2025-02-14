@@ -8,13 +8,14 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  role      Role     @default(USER)
-  nickname  String
-  password  String
-  clientId  String   @unique
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id            Int           @id @default(autoincrement())
+  role          Role          @default(USER)
+  nickname      String
+  password      String
+  clientId      String        @unique
+  createdAt     DateTime      @default(now()) @map("createdAt")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  joined_groups GroupMember[]
 }
 
 model Post {
@@ -32,9 +33,41 @@ model Post {
   likeCount    Int      @default(0)
   commentCount Int      @default(0)
   tag          Json
+
+  group Group @relation(fields: [groupId], references: [groupId], onDelete: Cascade)
 }
 
 enum Role {
   USER
+  ADMIN
+}
+
+model Group {
+  groupId          Int      @id @default(autoincrement())
+  groupName        String   @unique
+  groupPassword    String?
+  groupDescription String?
+  isPublic         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  imageUrl         String?
+
+  members GroupMember[]
+  posts   Post[]
+}
+
+model GroupMember {
+  groupId  Int
+  userId   Int
+  role     GroupRole @default(MEMBER)
+  joinedAt DateTime  @default(now())
+  group    Group     @relation(fields: [groupId], references: [groupId])
+  user     User      @relation(fields: [userId], references: [id])
+
+  @@id([groupId, userId])
+  @@index([userId], map: "GroupMember_userId_fkey")
+}
+
+enum GroupRole {
+  MEMBER
   ADMIN
 }

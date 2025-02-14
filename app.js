@@ -5,6 +5,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { assert } from 'superstruct';
 import userRouter from './user/routes/user.js'
 import authRouter from './auth/routes/auth.js'
+import groupRouter from "./group/routes/group.js";
 
 export const prisma = new PrismaClient();
 
@@ -27,5 +28,6 @@ app.use(express.json());
 
 app.use('/users', userRouter);
 app.use('/auth', authRouter);
+app.use("/api/groups", groupRouter);
 
 app.listen(process.env.PORT || 3000, () => console.log('Server Started'));
