@@ -18,6 +18,7 @@ model User {
 
 
   posts     Post[]   @relation("UserPosts") 
+  scraps    Scrap[]
 
   comments     Comment[]
   commentLikes CommentLike[]
@@ -43,7 +44,20 @@ model Post {
 
   user         User     @relation("UserPosts", fields: [userId], references: [id], onDelete: Cascade)
   comments     Comment[]
-  
+  scraps      Scrap[]
+}
+
+model Scrap {
+  scrapId        Int      @id @default(autoincrement()) 
+  userId    Int
+  postId    Int
+  isPublic  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [postId], onDelete: Cascade)
+
+  @@unique([userId, postId])  // 같은 사용자가 같은 게시글을 두 번 스크랩할 수 없게 설정
 }
 
 model Comment {
