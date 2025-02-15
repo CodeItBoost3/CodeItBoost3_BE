@@ -361,6 +361,71 @@ router.get("/:postId/is-public", async (req, res, next) => {
   }
 });
 
+// 스크랩 추가/삭제 (공개 여부 포함)
+router.post("/:postId/scrap", async (req, res, next) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user?.id || 1;
+    let { isPublic = true } = req.body; 
+
+    
+    if (typeof isPublic === "string") {
+      isPublic = isPublic === "true";  // "false"면 false, "true"면 true
+    }
+
+    if (!postId || isNaN(parseInt(postId))) {
+      return res.status(400).json(createResponse("fail", "잘못된 요청입니다.", {}));
+    }
+
+    // 존재하는 게시물인지 확인
+    const postExists = await prisma.post.findUnique({
+      where: { postId: parseInt(postId) },
+    });
+
+    if (!postExists) {
+      return res.status(404).json(createResponse("fail", "존재하지 않는 게시물입니다.", {}));
+    }
+
+    // 기존 스크랩 여부 확인
+    const existingScrap = await prisma.scrap.findFirst({
+      where: {
+        userId: parseInt(userId),
+        postId: parseInt(postId),
+      },
+    });
+
+    if (existingScrap) {
+      //  이미 스크랩한 상태 -> 스크랩 취소 (삭제)
+      await prisma.scrap.delete({
+        where: {
+          userId_postId: {
+            userId: parseInt(userId),
+            postId: parseInt(postId),
+          },
+        },
+      });
+
+      return res.status(200).json(createResponse("success", "스크랩이 취소되었습니다.", {}));
+    }
+
+    // 스크랩 추가 (공개 여부 포함)
+    const newScrap = await prisma.scrap.create({
+      data: {
+        userId: parseInt(userId),
+        postId: parseInt(postId),
+        isPublic: isPublic,  
+      },
+    });
+
+    return res.status(201).json(createResponse("success", "스크랩이 완료되었습니다.", newScrap));
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+});
+
+
+
 
 
 export default router;
