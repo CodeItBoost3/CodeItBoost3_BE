@@ -18,6 +18,7 @@ function createResponse(status, message, data) {
   };
 }
 
+// 📌 게시물 등록 API (이미지 없이도 테스트 가능하게 수정)
 //  게시물 등록 API 
 router.post("/:groupId/posts", upload.single("image"), async (req, res, next) => {
   try {
@@ -28,12 +29,12 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
 
     const { groupId } = req.params; 
     const { title, content, tag, location, moment, isPublic } = req.body;
-    const clientId = req.user.id;
+    const clientId = req.user?.id;
 
     if (!groupId || isNaN(groupId)) {
       return res.status(400).json(createResponse("fail", "잘못된 요청입니다.", {}));
     }
-
+    
     if (!req.file) {
       return res.status(400).json(createResponse("fail", "이미지를 업로드해주세요.", {}));
     }
@@ -47,12 +48,12 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
 
     // clientId 검증: DB에서 사용자가 존재하는지 확인
     let user = await prisma.user.findUnique({
-      where: { clientId: clientId },  
-      select: { clientId: true, nickname: true },
+      where: { id : userId },  
+      select: { id: true, nickname: true },
     });
 
     if (!user) {
-      return res.status(400).json(createResponse("fail", "유효하지 않은 사용자입니다.", {})); 
+      return res.status(400).json(createResponse("fail", "유효하지 않은 사용자입니다.", {}));
     }
     
 
@@ -60,7 +61,6 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
     const newPost = await prisma.post.create({
       data: {
         groupId: parseInt(groupId),
-        clientId,
         nickname: user.nickname,
         title,
         content,
@@ -72,6 +72,9 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
         commentCount: 0,
         tag,
         createdAt: new Date(),
+	      user: {
+          connect: { id: user.id }
+        },
       },
     });
 
@@ -81,6 +84,7 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
     next(error);
   }
 });
+
 
 //  게시물 목록 조회 API
 router.get("/:groupId/posts", async (req, res, next) => {
@@ -187,9 +191,9 @@ router.put("/:postId", upload.single("image"), async (req, res, next) => {
   try {
     const { postId } = req.params;
     const { title, content, tag, location, moment, isPublic } = req.body;
-    const clientId = req.user?.id;
+    const userId = req.user?.id;
 
-    if (!clientId) {
+    if (!userId) {
       return res.status(401).json(createResponse("fail", "로그인이 필요합니다.", {}));
     }
 
@@ -208,7 +212,7 @@ router.put("/:postId", upload.single("image"), async (req, res, next) => {
     }
 
     // 본인 확인 (작성자가 아니면 수정 불가)
-    if (existingPost.clientId !== clientId) {
+    if (existingPost.userId !== userId) {
       return res.status(403).json(createResponse("fail", "작성자만 수정할 수 있습니다.", {}));
     }
 
@@ -251,9 +255,9 @@ router.put("/:postId", upload.single("image"), async (req, res, next) => {
 router.delete("/:postId", async (req, res, next) => {
   try {
     const { postId } = req.params;
-    const clientId = req.user?.id
+    const userId = req.user?.id
 
-    if (!clientId) {
+    if (!userId) {
       return res.status(401).json({ status: "fail", message: "로그인이 필요합니다.", data: {} });
     }
 
@@ -272,7 +276,7 @@ router.delete("/:postId", async (req, res, next) => {
     }
 
     // 본인 확인 (작성자가 아니면 삭제 불가)
-    if (existingPost.clientId !== clientId) {
+    if (existingPost.userId !== userId) {
       return res.status(403).json({ status: "fail", message: "작성자만 삭제할 수 있습니다.", data: {} });
     }
 
