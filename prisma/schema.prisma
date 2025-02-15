@@ -16,29 +16,36 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+
+  posts     Post[]   @relation("UserPosts") 
+
   comments     Comment[]
   commentLikes CommentLike[]
-  posts        Post[]
+
 }
 
+
 model Post {
-  postId       Int      @id @default(autoincrement())
+  postId       Int      @id @default(autoincrement()) 
   groupId      Int
-  userId       Int
+  clientId       Int  
   nickname     String
   title        String
   content      String
   imageUrl     String
   location     String
   moment       DateTime
-  isPublic     Boolean
-  createdAt    DateTime @default(now())
+  isPublic     Boolean  @default(true)
+  createdAt    DateTime @default(now()) 
   likeCount    Int      @default(0)
   commentCount Int      @default(0)
   tag          Json
 
+
+  user         User     @relation("UserPosts", fields: [clientId], references: [id], onDelete: Cascade)
+
   comments     Comment[]
-  user         User      @relation(fields: [userId], references: [id])
+  
 }
 
 model Comment {
@@ -69,6 +76,7 @@ model CommentLike {
   comment   Comment  @relation(fields: [commentId], references: [commentId], onDelete: Cascade)
   
   @@unique([userId, commentId])
+
 }
 
 enum Role {
