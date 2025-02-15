@@ -1,3 +1,5 @@
+import { prisma } from "../app.js";
+
 export async function checkDBConnection() {
   try {
     await prisma.$connect();
