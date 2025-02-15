@@ -28,11 +28,11 @@ model User {
 model Post {
   postId       Int      @id @default(autoincrement()) 
   groupId      Int
-  clientId       Int  
+  userId       Int  
   nickname     String
   title        String
   content      String
-  imageUrl     String
+  imageUrl     String?
   location     String
   moment       DateTime
   isPublic     Boolean  @default(true)
@@ -41,9 +41,7 @@ model Post {
   commentCount Int      @default(0)
   tag          Json
 
-
-  user         User     @relation("UserPosts", fields: [clientId], references: [id], onDelete: Cascade)
-
+  user         User     @relation("UserPosts", fields: [userId], references: [id], onDelete: Cascade)
   comments     Comment[]
   
 }
