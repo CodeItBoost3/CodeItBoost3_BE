@@ -23,7 +23,7 @@ model User {
 model Post {
   postId       Int      @id @default(autoincrement()) 
   groupId      Int
-  clientId     String  @default("test_client")
+  clientId       Int  
   nickname     String
   title        String
   content      String
@@ -36,7 +36,7 @@ model Post {
   commentCount Int      @default(0)
   tag          Json
 
- user        User     @relation("UserPosts", fields: [clientId], references: [clientId], onDelete: Cascade)
+  user         User     @relation("UserPosts", fields: [clientId], references: [id], onDelete: Cascade)
 }
 
 enum Role {
