@@ -1,3 +1,4 @@
+
 export class CustomError extends Error {
   constructor(statusCode, message) {
       super(message);
@@ -6,26 +7,20 @@ export class CustomError extends Error {
   }
 }
 
-export function errorHandler(handler){
-  return async (req, res) => {
-    try{
-      await handler(req, res);
+export function errorHandler(){
+  return function(err, req, res, next){
+    console.error("🔴 Error caught in errorHandler:", err.message);
+    if(err instanceof CustomError){
+      res.status(err.statusCode).send({
+        status: 'fail',
+        message: err.message
+      });
     }
-    catch(e){
-      console.log("Error type:", e.constructor.name);
-  
-      if(e.statusCode < 500){
-        res.status(e.statusCode).send({
-          status: 'fail',
-          message: e.message
-        });
-      }
-      else{
-        res.status(500).send({
-          status: 'error',
-          message: '서버 에러입니다. 서버 관리자에게 문의해주세요',
-        });
-      }
+    else{
+      res.status(500).send({
+        status: 'error',
+        message: '처리되지 않은 에러입니다. 서버에 문의해주세요.\n' + err.message,
+      });    
     }
   }
 }

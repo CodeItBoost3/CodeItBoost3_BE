@@ -7,23 +7,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
+model user {
   id        Int      @id @default(autoincrement())
   role      Role     @default(USER)
   nickname  String
   password  String
-  clientId  String   @unique
+  clientId  String   @unique @map("client_id")
+  profileImageUrl String?  @map("profile_image_url")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-
   posts     Post[]   @relation("UserPosts") 
-
   comments     Comment[]
   commentLikes CommentLike[]
-
 }
-
 
 model Post {
   postId       Int      @id @default(autoincrement()) 
