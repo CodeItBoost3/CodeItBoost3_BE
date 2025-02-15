@@ -2,6 +2,8 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 import express from 'express';
+import cors from 'cors';
+
 import { PrismaClient, Prisma } from '@prisma/client';
 import userRouter from './user/routes/user.js';
 import authRouter from './auth/routes/auth.js';
@@ -11,11 +13,13 @@ import { errorHandler } from './error/error.js';
 import { authenticateByToken } from './auth/routes/authToken.js';
 import { checkDBConnection } from './config/db.js';
 
+export const prisma = new PrismaClient();
+
 checkDBConnection();
 
 const app = express();
 app.use(express.json());
-
+app.use(cors());
 
 // 비동기 에러를 에러 핸들러로 전해주기 위한 고차함수
 export function wrapAsync(fn){
