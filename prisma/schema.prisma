@@ -16,7 +16,12 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+
   posts     Post[]   @relation("UserPosts") 
+
+  comments     Comment[]
+  commentLikes CommentLike[]
+
 }
 
 
@@ -36,7 +41,42 @@ model Post {
   commentCount Int      @default(0)
   tag          Json
 
+
   user         User     @relation("UserPosts", fields: [clientId], references: [id], onDelete: Cascade)
+
+  comments     Comment[]
+  
+}
+
+model Comment {
+  commentId Int      @id @default(autoincrement())
+  content   String
+  userId    Int
+  postId    Int
+  parentId  Int?
+  nickname  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  likeCount Int      @default(0)
+
+  user      User      @relation(fields: [userId], references: [id])
+  post      Post      @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [commentId], onDelete: Cascade)
+  replies   Comment[] @relation("CommentReplies")
+  likes     CommentLike[]
+}
+
+model CommentLike {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  commentId Int
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment   Comment  @relation(fields: [commentId], references: [commentId], onDelete: Cascade)
+  
+  @@unique([userId, commentId])
+
 }
 
 enum Role {

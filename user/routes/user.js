@@ -2,7 +2,7 @@ import express from 'express';
 import { prisma } from '../../app.js';
 import { createUser }from '../userStructs.js';
 import { assert } from 'superstruct';
-import bcrypt from 'bcrypt';
+
 
 const userRouter = express.Router();
 
