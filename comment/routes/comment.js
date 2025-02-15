@@ -14,8 +14,9 @@ function createResponse(status, message, data) {
 // 댓글과 대댓글 등록
 commentRouter.post("/posts/:postId/comments", async (req, res) => {
   try {
-    const { content, parentId, userId } = req.body;
+    const { content, parentId } = req.body;
     const { postId } = req.params;
+    const userId = req.user.id;
 
     // 필수값 체크
     if (!content || !userId) {
@@ -105,7 +106,8 @@ commentRouter.get("/posts/:postId/comments", async (req, res) => {
 commentRouter.put("/comments/:commentId", async (req, res) => {
   try {
     const { commentId } = req.params;
-    const { content, userId } = req.body; // userId를 body에서 받아옴
+    const { content } = req.body;
+    const userId = req.user.id;
 
     const comment = await prisma.comment.findFirst({
       where: {
@@ -144,7 +146,7 @@ commentRouter.put("/comments/:commentId", async (req, res) => {
 commentRouter.delete("/comments/:commentId", async (req, res) => {
   try {
     const { commentId } = req.params;
-    const { userId } = req.body; // userId를 body에서 받아옴
+    const userId = req.user.id;
 
     const comment = await prisma.comment.findFirst({
       where: {
@@ -199,7 +201,7 @@ commentRouter.delete("/comments/:commentId", async (req, res) => {
 commentRouter.post("/comments/:commentId/like", async (req, res) => {
   try {
     const { commentId } = req.params;
-    const { userId } = req.body; // userId를 body에서 받아옴
+    const userId = req.user.id;
 
     const existingLike = await prisma.commentLike.findFirst({
       where: {

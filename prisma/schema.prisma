@@ -54,7 +54,7 @@ model Comment {
 
   user      User      @relation(fields: [userId], references: [id])
   post      Post      @relation(fields: [postId], references: [postId], onDelete: Cascade)
-  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [commentId])
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [commentId], onDelete: Cascade)
   replies   Comment[] @relation("CommentReplies")
   likes     CommentLike[]
 }
@@ -65,8 +65,8 @@ model CommentLike {
   commentId Int
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id])
-  comment   Comment  @relation(fields: [commentId], references: [commentId])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment   Comment  @relation(fields: [commentId], references: [commentId], onDelete: Cascade)
   
   @@unique([userId, commentId])
 }
