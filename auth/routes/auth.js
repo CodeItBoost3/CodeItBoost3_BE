@@ -1,12 +1,11 @@
+
 import express from 'express';
 import { prisma } from '../../app.js';
 import bcrypt from 'bcrypt';
 import { errorHandler, CustomError } from '../../error/error.js'
 import jwt from 'jsonwebtoken';
 import { wrapAsync } from '../../app.js';
-
-
-const authRouter = express.Router()
+const authRouter = express.Router();
 
 
 authRouter.post('/login', wrapAsync(async (req, res, next) =>{
@@ -33,7 +32,7 @@ authRouter.post('/login', wrapAsync(async (req, res, next) =>{
   const token = generateToken(user)
   const decoded = jwt.decode(token)
 
-  res.send({
+res.send({
     status: 'success',
     message: '로그인에 성공하였습니다.',
     data:{
@@ -42,7 +41,7 @@ authRouter.post('/login', wrapAsync(async (req, res, next) =>{
       expiresln: decoded.exp
     }
   })
-}))
+);
 
 function generateToken(user) {
   console.log(user)
@@ -52,6 +51,5 @@ function generateToken(user) {
       { expiresIn: process.env.TOKEN_EXPIRATION }  
   );
 }
-
 
 export default authRouter;
