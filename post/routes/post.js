@@ -21,7 +21,7 @@ function createResponse(status, message, data) {
 //  게시물 등록 API 
 router.post("/:groupId/posts", upload.single("image"), async (req, res, next) => {
   try {
-    console.log(req.body);
+
 
     // 요청 데이터 검증
     assert(req.body, createPost);
@@ -31,7 +31,7 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
     const userId = req.user?.id;
 
     if (!groupId || isNaN(groupId)) {
-      return res.status(400).json(createResponWse("fail", "잘못된 요청입니다.", {}));
+      return res.status(400).json(createResponse("fail", "잘못된 요청입니다.", {}));
     }
     
     if (!req.file) {
@@ -56,10 +56,6 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
     }
     
     
-      // 새 변수를 사용하여 변환
-    const parsedIsPublic = isPublic ? isPublic === "true" : false;
-    const parsedTag = typeof tag === "string" ? JSON.parse(tag) : tag;
-
     // 존재하는 유저라면 게시물 등록
     const newPost = await prisma.post.create({
       data: {
@@ -70,10 +66,10 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
         imageUrl,
         location,
         moment: new Date(moment),
-        isPublic: parsedIsPublic,
+        isPublic: isPublic === "true",
         likeCount: 0,
         commentCount: 0,
-        tag: parsedTag,
+        tag: typeof tag === "string" ? JSON.parse(tag) : tag,
         createdAt: new Date(),
 	      user: {
           connect: { id: user.id }
@@ -224,7 +220,7 @@ router.put("/:postId", upload.single("image"), async (req, res, next) => {
     // 새로운 이미지 업로드 시 기존 이미지 삭제 후 새 이미지 업로드
     if (req.file) {
       if (existingPost.imageUrl) {
-        await deleteFromS3(existingPost.imageUrl.replace(process.env.AWS_CLOUD_FRONT_URL + "/", ""));
+        await deleteFromS3(existingPost.imageUrl);
       }
 
       const path = "post_images";
@@ -233,9 +229,7 @@ router.put("/:postId", upload.single("image"), async (req, res, next) => {
       updatedImageUrl = `${process.env.AWS_CLOUD_FRONT_URL}/${fileKey}`;
     }
 
-    const parsedIsPublic = typeof isPublic === "boolean" ? isPublic : isPublic === "true";
-    const parsedTag = typeof tag === "string" ? JSON.parse(tag) : tag;
-
+    
     // 게시물 업데이트
     const updatedPost = await prisma.post.update({
       where: { postId: parseInt(postId) },
@@ -245,8 +239,8 @@ router.put("/:postId", upload.single("image"), async (req, res, next) => {
         imageUrl: updatedImageUrl,
         location,
         moment: new Date(moment),
-        isPublic: parsedIsPublic,
-        tag: parsedTag,
+        isPublic: isPublic === "true",
+        tag: typeof tag === "string" ? JSON.parse(tag) : tag,
       },
     });
 
@@ -288,7 +282,7 @@ router.delete("/:postId", async (req, res, next) => {
 
     // S3에서 이미지 삭제
     if (existingPost.imageUrl) {
-      await deleteFromS3(existingPost.imageUrl.replace(process.env.AWS_CLOUD_FRONT_URL + "/", ""));
+      await deleteFromS3(existingPost.imageUrl);
     }
 
     // 게시물 삭제
