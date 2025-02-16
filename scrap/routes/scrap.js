@@ -16,7 +16,7 @@ function createResponse(status, message, data) {
 router.get("/scraps", async (req, res, next) => {
     try {
       const { page = 1, pageSize = 10, sortBy = "latest", isPublic, keyword } = req.query;
-      const userId = req.user?.id || 1; // 로그인한 사용자
+      const userId = req.user?.id; // 로그인한 사용자
 
       // 로그인 여부 
       if (!userId) {
@@ -94,7 +94,7 @@ router.get("/scraps", async (req, res, next) => {
 router.get("/scraps/:postId", async (req, res, next) => {
   try {
     const { postId } = req.params;
-    const userId = req.user?.id || 1;
+    const userId = req.user?.id;
 
     if (!userId) {
       return res.status(401).json(createResponse("fail", "로그인이 필요합니다.", {}));
@@ -108,9 +108,7 @@ router.get("/scraps/:postId", async (req, res, next) => {
       where: { userId_postId: { userId, postId: parseInt(postId) } },
     });
 
-    return res.status(200).json({
-      isScrapped: !!scrap, // true면 스크랩됨, false면 스크랩 안 됨
-    });
+    return res.status(200).json(createResponse("success", "스크랩 여부 확인 성공", { isScrapped: !!scrap }));
   } catch (error) {
     console.error(error);
     next(error);
@@ -121,13 +119,13 @@ router.get("/scraps/:postId", async (req, res, next) => {
 router.get("/scraps/post/:postId", async (req, res, next) => {
     try {
       const { postId } = req.params;
-      const userId = req.user?.id || 1;
+      const userId = req.user?.id;
   
       if (!postId || isNaN(parseInt(postId))) {
         return res.status(400).json(createResponse("fail", "잘못된 요청입니다.", {}));
       }
   
-      // ✅ 사용자가 스크랩한 게시물인지 확인
+      //  사용자가 스크랩한 게시물인지 확인
       const scrap = await prisma.scrap.findFirst({
         where: {
           userId: parseInt(userId),
