@@ -7,7 +7,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model user {
+//  테스트를 위한 임시 그룹
+// model Group{ 
+//   id Int      @id @default(autoincrement())
+//   name String
+//   userId Int
+
+//   member User[]
+//   posts Post[] @relation("GroupRelation")
+// }
+
+model User {
   id        Int      @id @default(autoincrement())
   role      Role     @default(USER)
   nickname  String
@@ -21,6 +31,8 @@ model user {
   scraps    Scrap[]
   comments     Comment[]
   commentLikes CommentLike[]
+  // 그룹 추가 시 주석 해제
+  // groups Group[] 
 }
 
 model Post {
@@ -39,7 +51,9 @@ model Post {
   commentCount Int      @default(0)
   tag          Json
 
-  user         User     @relation("UserPosts", fields: [userId], references: [id], onDelete: Cascade)
+  author       User     @relation("UserPosts", fields: [userId], references: [id], onDelete: Cascade)
+  // 그룹 추가 시 주석 해제
+  // group        Group    @relation("GroupRelation", fields: [groupId], references: [id], onDelete: Cascade) 
   comments     Comment[]
   scraps      Scrap[]
 }

@@ -59,7 +59,7 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
     // 존재하는 유저라면 게시물 등록
     const newPost = await prisma.post.create({
       data: {
-        groupId: parseInt(groupId),
+        groupId: parseInt(groupId), // group 합칠 때 삭제
         nickname: user.nickname,
         title,
         content,
@@ -71,9 +71,13 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
         commentCount: 0,
         tag: typeof tag === "string" ? JSON.parse(tag) : tag,
         createdAt: new Date(),
-	      user: {
+        author: {
           connect: { id: user.id }
         },
+        // group 합칠 때 추가 
+        // group:{
+        //   connect: { id: parseInt(groupId)}
+        // }
       },
     });
 
@@ -103,7 +107,7 @@ router.get("/:groupId/posts", async (req, res, next) => {
       orderBy = { commentCount: "desc" };
     } else if (sortBy === "mostLiked") {
       orderBy = { likeCount: "desc" };
-    } 
+    }
 
     const whereClause = { groupId: parseInt(groupId) };
 
@@ -124,6 +128,16 @@ router.get("/:groupId/posts", async (req, res, next) => {
       orderBy,
       skip,
       take,
+      include:{
+        author: {
+          select:{
+            nickname: true
+          }
+        }
+      },
+      omit:{
+        userId: true
+      }
     });
 
     const totalItemCount = await prisma.post.count({ where: whereClause });
@@ -155,22 +169,18 @@ router.get("/:postId", async (req, res, next) => {
     //  게시물 조회
     const post = await prisma.post.findUnique({
       where: { postId: parseInt(postId) },
-      select: {
-        postId: true,
-        groupId: true,
-        nickname: true,
-        title: true,
-        content: true,
-        imageUrl: true,
-        tag: true, 
-        location: true,
-        moment: true,
-        isPublic: true,
-        likeCount: true,
-        commentCount: true,
-        createdAt: true,
+      include:{
+        author: {
+          select:{
+            nickname: true
+          }
+        }
       },
+      omit:{
+        userId: true
+      }
     });
+
 
     // 게시물이 존재하지 않으면 404 반환
     if (!post) {
@@ -220,7 +230,7 @@ router.put("/:postId", upload.single("image"), async (req, res, next) => {
     // 새로운 이미지 업로드 시 기존 이미지 삭제 후 새 이미지 업로드
     if (req.file) {
       if (existingPost.imageUrl) {
-        await deleteFromS3(existingPost.imageUrl);
+        await deleteFromS3(existingPost.imageUrl.replace(process.env.AWS_CLOUD_FRONT_URL + "/", ""));
       }
 
       const path = "post_images";
