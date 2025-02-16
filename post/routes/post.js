@@ -29,7 +29,7 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
 
     const { groupId } = req.params; 
     const { title, content, tag, location, moment, isPublic } = req.body;
-    const clientId = req.user?.id;
+    const userId = req.user?.id;
 
     if (!groupId || isNaN(groupId)) {
       return res.status(400).json(createResponse("fail", "잘못된 요청입니다.", {}));
