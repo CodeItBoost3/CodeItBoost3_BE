@@ -3,7 +3,8 @@ dotenv.config();
 
 import express from 'express';
 import cors from 'cors';
-
+import morgan from "morgan";
+import moment from "moment-timezone";
 import { PrismaClient, Prisma } from '@prisma/client';
 import userRouter from './user/routes/user.js';
 import authRouter from './auth/routes/auth.js';
@@ -17,9 +18,17 @@ export const prisma = new PrismaClient();
 
 checkDBConnection();
 
+
+
+
 const app = express();
 app.use(express.json());
 app.use(cors());
+
+morgan.token("timestamp", () => moment().tz("Asia/Seoul").format("YYYY-MM-DD HH:mm:ss"));
+morgan.token("body", (req) => JSON.stringify(req.body) || "empty");
+morgan.token("user", (req) => (req.user ? `UserID: ${req.user.id}` : "Guest"));
+app.use(morgan("[:timestamp] :method :url :status :response-time ms - body: :body - :user"));
 
 // 비동기 에러를 에러 핸들러로 전해주기 위한 고차함수
 export function wrapAsync(fn){
