@@ -8,24 +8,25 @@ import jwt from 'jsonwebtoken';
 const authRouter = express.Router()
 
 
-authRouter.post('/login', errorHandler(async (req, res, next) =>{
+authRouter.post('/login', errorHandler(async (req, res, next) => {
   const { clientId, password } = req.body;
   // 1. ID 등록 확인
   const user = await prisma.user.findUnique({
     select: {
+      id: true,
       password: true,
       role: true,
     },
-    where: { 
-      clientId 
+    where: {
+      clientId
     },
   });
-  if(!user){
+  if (!user) {
     throw new CustomError(404, '일치하는 ID가 없습니다.');
   }
-  
+
   // 2. 비밀번호 일치여부 확인
-  if (!await bcrypt.compare(password, user.password)){
+  if (!await bcrypt.compare(password, user.password)) {
     throw new CustomError(401, '비밀번호가 일치하지 않습니다.');
   }
   const token = generateToken(user)
@@ -34,7 +35,7 @@ authRouter.post('/login', errorHandler(async (req, res, next) =>{
   res.send({
     status: 'success',
     message: '로그인에 성공하였습니다.',
-    data:{
+    data: {
       accessToken: token,
       tokenType: 'Bearer',
       expiresln: decoded.exp
@@ -45,9 +46,9 @@ authRouter.post('/login', errorHandler(async (req, res, next) =>{
 function generateToken(user) {
   console.log(process.env.TOKEN_EXPIRATION);
   return jwt.sign(
-      { id: user.id, role: user.role },  
-      process.env.JWT_SECRET,  
-      { expiresIn: process.env.TOKEN_EXPIRATION }  
+    { id: user.id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.TOKEN_EXPIRATION }
   );
 }
 
