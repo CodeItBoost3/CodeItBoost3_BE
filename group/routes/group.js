@@ -60,7 +60,7 @@ groupRouter.post("/", upload.single("groupImage"), async (req, res, next) => {
         },
       },
       include: {
-        members: true, // 생성된 그룹의 members 정보를 포함
+        members: true,
       },
     });
 
@@ -290,14 +290,14 @@ groupRouter.delete("/:groupId", async (req, res, next) => {
     const groupId = parseInt(req.params.groupId);
     const userId = req.user.id;
 
+    if (!userId) {
+      return res.status(401).json(createResponse("unauthorized", "유저 정보가 없습니다. 로그인 후 이용해주세요.", {}));
+    }
+
     const membership = await prisma.groupMember.findUnique({
       where: { groupId_userId: { groupId, userId } },
       select: { role: true },
     });
-
-    if (!userId) {
-      return res.status(401).json(createResponse("unauthorized", "유저 정보가 없습니다. 로그인 후 이용해주세요.", {}));
-    }
 
     if (!membership || membership.role !== "ADMIN") {
       return res.status(403).json(createResponse("forbidden", "관리자만 그룹을 삭제할 수 있습니다.", {}));
