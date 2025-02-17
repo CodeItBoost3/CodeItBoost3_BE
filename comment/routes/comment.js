@@ -35,7 +35,7 @@ const authenticateToken = (req, res, next) => {
         .json(createResponse("fail", "토큰이 만료되었습니다.", {}));
     }
     return res
-      .status(403)
+      .status(401)
       .json(createResponse("fail", "유효하지 않은 토큰입니다.", {}));
   }
 };
