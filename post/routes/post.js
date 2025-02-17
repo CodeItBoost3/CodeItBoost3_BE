@@ -21,19 +21,19 @@ function createResponse(status, message, data) {
 //  게시물 등록 API 
 router.post("/:groupId/posts", upload.single("image"), async (req, res, next) => {
   try {
-    console.log(req.body);
+
 
     // 요청 데이터 검증
     assert(req.body, createPost);
 
     const { groupId } = req.params; 
     const { title, content, tag, location, moment, isPublic } = req.body;
-    const clientId = req.user.id;
+    const userId = req.user?.id;
 
     if (!groupId || isNaN(groupId)) {
       return res.status(400).json(createResponse("fail", "잘못된 요청입니다.", {}));
     }
-
+    
     if (!req.file) {
       return res.status(400).json(createResponse("fail", "이미지를 업로드해주세요.", {}));
     }
@@ -45,33 +45,39 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
      await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
      const imageUrl = `${process.env.AWS_CLOUD_FRONT_URL}/${fileKey}`;
 
-    // clientId 검증: DB에서 사용자가 존재하는지 확인
+    // userId 검증: DB에서 사용자가 존재하는지 확인
     let user = await prisma.user.findUnique({
-      where: { clientId: clientId },  
-      select: { clientId: true, nickname: true },
+      where: { id : userId },  
+      select: { id: true, nickname: true },
     });
 
     if (!user) {
-      return res.status(400).json(createResponse("fail", "유효하지 않은 사용자입니다.", {})); 
+      return res.status(400).json(createResponse("fail", "유효하지 않은 사용자입니다.", {}));
     }
     
-
+    
     // 존재하는 유저라면 게시물 등록
     const newPost = await prisma.post.create({
       data: {
-        groupId: parseInt(groupId),
-        clientId,
+        groupId: parseInt(groupId), // group 합칠 때 삭제
         nickname: user.nickname,
         title,
         content,
         imageUrl,
         location,
         moment: new Date(moment),
-        isPublic,
+        isPublic: isPublic === "true",
         likeCount: 0,
         commentCount: 0,
-        tag,
+        tag: typeof tag === "string" ? JSON.parse(tag) : tag,
         createdAt: new Date(),
+        author: {
+          connect: { id: user.id }
+        },
+        // group 합칠 때 추가 
+        // group:{
+        //   connect: { id: parseInt(groupId)}
+        // }
       },
     });
 
@@ -81,6 +87,7 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
     next(error);
   }
 });
+
 
 //  게시물 목록 조회 API
 router.get("/:groupId/posts", async (req, res, next) => {
@@ -100,7 +107,7 @@ router.get("/:groupId/posts", async (req, res, next) => {
       orderBy = { commentCount: "desc" };
     } else if (sortBy === "mostLiked") {
       orderBy = { likeCount: "desc" };
-    } 
+    }
 
     const whereClause = { groupId: parseInt(groupId) };
 
@@ -121,6 +128,16 @@ router.get("/:groupId/posts", async (req, res, next) => {
       orderBy,
       skip,
       take,
+      include:{
+        author: {
+          select:{
+            nickname: true
+          }
+        }
+      },
+      omit:{
+        userId: true
+      }
     });
 
     const totalItemCount = await prisma.post.count({ where: whereClause });
@@ -152,22 +169,18 @@ router.get("/:postId", async (req, res, next) => {
     //  게시물 조회
     const post = await prisma.post.findUnique({
       where: { postId: parseInt(postId) },
-      select: {
-        postId: true,
-        groupId: true,
-        nickname: true,
-        title: true,
-        content: true,
-        imageUrl: true,
-        tag: true, 
-        location: true,
-        moment: true,
-        isPublic: true,
-        likeCount: true,
-        commentCount: true,
-        createdAt: true,
+      include:{
+        author: {
+          select:{
+            nickname: true
+          }
+        }
       },
+      omit:{
+        userId: true
+      }
     });
+
 
     // 게시물이 존재하지 않으면 404 반환
     if (!post) {
@@ -187,9 +200,9 @@ router.put("/:postId", upload.single("image"), async (req, res, next) => {
   try {
     const { postId } = req.params;
     const { title, content, tag, location, moment, isPublic } = req.body;
-    const clientId = req.user?.id;
+    const userId = req.user?.id;
 
-    if (!clientId) {
+    if (!userId) {
       return res.status(401).json(createResponse("fail", "로그인이 필요합니다.", {}));
     }
 
@@ -208,7 +221,7 @@ router.put("/:postId", upload.single("image"), async (req, res, next) => {
     }
 
     // 본인 확인 (작성자가 아니면 수정 불가)
-    if (existingPost.clientId !== clientId) {
+    if (existingPost.userId !== userId) {
       return res.status(403).json(createResponse("fail", "작성자만 수정할 수 있습니다.", {}));
     }
 
@@ -226,6 +239,7 @@ router.put("/:postId", upload.single("image"), async (req, res, next) => {
       updatedImageUrl = `${process.env.AWS_CLOUD_FRONT_URL}/${fileKey}`;
     }
 
+    
     // 게시물 업데이트
     const updatedPost = await prisma.post.update({
       where: { postId: parseInt(postId) },
@@ -235,8 +249,8 @@ router.put("/:postId", upload.single("image"), async (req, res, next) => {
         imageUrl: updatedImageUrl,
         location,
         moment: new Date(moment),
-        isPublic,
-        tag,
+        isPublic: isPublic === "true",
+        tag: typeof tag === "string" ? JSON.parse(tag) : tag,
       },
     });
 
@@ -251,9 +265,9 @@ router.put("/:postId", upload.single("image"), async (req, res, next) => {
 router.delete("/:postId", async (req, res, next) => {
   try {
     const { postId } = req.params;
-    const clientId = req.user?.id
+    const userId = req.user?.id
 
-    if (!clientId) {
+    if (!userId) {
       return res.status(401).json({ status: "fail", message: "로그인이 필요합니다.", data: {} });
     }
 
@@ -263,7 +277,7 @@ router.delete("/:postId", async (req, res, next) => {
 
     // 게시물 존재 여부 확인
     const existingPost = await prisma.post.findUnique({
-      wwhere: { postId: parseInt(postId) },
+      where: { postId: parseInt(postId) },
       select: { userId: true, imageUrl: true },
     });
 
@@ -272,13 +286,13 @@ router.delete("/:postId", async (req, res, next) => {
     }
 
     // 본인 확인 (작성자가 아니면 삭제 불가)
-    if (existingPost.clientId !== clientId) {
+    if (existingPost.userId !== userId) {
       return res.status(403).json({ status: "fail", message: "작성자만 삭제할 수 있습니다.", data: {} });
     }
 
     // S3에서 이미지 삭제
     if (existingPost.imageUrl) {
-      await deleteFromS3(existingPost.imageUrl.replace(process.env.AWS_CLOUD_FRONT_URL + "/", ""));
+      await deleteFromS3(existingPost.imageUrl);
     }
 
     // 게시물 삭제
@@ -356,6 +370,71 @@ router.get("/:postId/is-public", async (req, res, next) => {
     next(error);
   }
 });
+
+// 스크랩 추가/삭제 (공개 여부 포함)
+router.post("/:postId/scrap", async (req, res, next) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user?.id || 1;
+    let { isPublic = true } = req.body; 
+
+    
+    if (typeof isPublic === "string") {
+      isPublic = isPublic === "true";  // "false"면 false, "true"면 true
+    }
+
+    if (!postId || isNaN(parseInt(postId))) {
+      return res.status(400).json(createResponse("fail", "잘못된 요청입니다.", {}));
+    }
+
+    // 존재하는 게시물인지 확인
+    const postExists = await prisma.post.findUnique({
+      where: { postId: parseInt(postId) },
+    });
+
+    if (!postExists) {
+      return res.status(404).json(createResponse("fail", "존재하지 않는 게시물입니다.", {}));
+    }
+
+    // 기존 스크랩 여부 확인
+    const existingScrap = await prisma.scrap.findFirst({
+      where: {
+        userId: parseInt(userId),
+        postId: parseInt(postId),
+      },
+    });
+
+    if (existingScrap) {
+      //  이미 스크랩한 상태 -> 스크랩 취소 (삭제)
+      await prisma.scrap.delete({
+        where: {
+          userId_postId: {
+            userId: parseInt(userId),
+            postId: parseInt(postId),
+          },
+        },
+      });
+
+      return res.status(200).json(createResponse("success", "스크랩이 취소되었습니다.", {}));
+    }
+
+    // 스크랩 추가 (공개 여부 포함)
+    const newScrap = await prisma.scrap.create({
+      data: {
+        userId: parseInt(userId),
+        postId: parseInt(postId),
+        isPublic: isPublic,  
+      },
+    });
+
+    return res.status(201).json(createResponse("success", "스크랩이 완료되었습니다.", newScrap));
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+});
+
+
 
 
 
