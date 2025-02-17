@@ -54,10 +54,13 @@ groupRouter.post("/", upload.single("groupImage"), async (req, res, next) => {
         imageUrl,
         members: {
           create: {
-            user: { connect: { id: userId } },
+            userId: userId,
             role: "ADMIN",
           },
         },
+      },
+      include: {
+        members: true, // 생성된 그룹의 members 정보를 포함
       },
     });
 
