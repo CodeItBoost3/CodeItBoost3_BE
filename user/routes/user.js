@@ -191,21 +191,106 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
     }
   }))
 
-  // .get('/me/posts', wrapAsync(async (req, res) => {
-  //   const id = req.user?.id
-  //   const { page, pageSize } = req.query
+  .get('/me/posts', wrapAsync(async (req, res) => {
+    const userId = req.user.id
+    const { page = '1', pageSize = '5'} = req.query
 
-  //   prisma.post.findMany({
-  //     select:{
-  //       title: true,
-  //       tag: true,
-  //     },
-  //     include: {
-  //       author:
-  //     }
-  //   })
+    const orderBy = {createdAt: 'desc'}
+    const take = parseInt(pageSize); 
+    const skip = (parseInt(page) - 1) * take;
+  
 
-  // }))
+    const totalItemCount = await prisma.post.count({
+      where: { userId } 
+    });
+    const totalPages = Math.ceil(totalItemCount / take);
+    if( totalPages < parseInt(page)){
+      throw new CustomError(404, '존재하지 않는 페이지 입니다.');
+    }
+    const posts = await prisma.post.findMany({
+      select:{
+        title: true,
+        content: true,
+        tag: true,
+        moment: true,
+        createdAt: true,
+        likeCount: true,
+        commentCount: true,
+
+        author:{
+          select:{
+            nickname: true,
+          }
+        },
+        group:{
+          select:{
+            groupName: true,
+            isPublic: true,
+          }
+        }
+      },
+      where:{
+        userId
+      },
+      orderBy,
+      take,
+      skip
+    });
+
+    res.send(createResponse('success', '내가 작성한 추억을 불러왔습니다..',{
+      posts,
+      currentPage: parseInt(page),
+      totalPages,
+    }));
+  }))
+
+  .get('/me/comments', wrapAsync(async (req, res) => {
+    const userId = req.user.id
+    const { page = '1', pageSize = '5'} = req.query
+
+    const orderBy = {createdAt: 'desc'}
+    const take = parseInt(pageSize); 
+    const skip = (parseInt(page) - 1) * take;
+  
+    const totalItemCount = await prisma.comment.count({
+      where: { userId } 
+    });
+    const totalPages = Math.ceil(totalItemCount / take);
+    if( totalPages < parseInt(page)){
+      throw new CustomError(404, '존재하지 않는 페이지 입니다.');
+    }
+    const comments = await prisma.comment.findMany({
+      select:{
+        content: true,
+        createdAt: true,
+        likeCount: true,
+        post:{
+          select:{
+            postId: true,
+            title: true,
+          }
+        }
+      },
+      where:{
+        userId
+      },
+      orderBy,
+      take,
+      skip
+    });
+
+    res.send(createResponse('success', '내가 작성한 댓글을 불러왔습니다..',{
+      comments,
+      currentPage: parseInt(page),
+      totalPages,
+    }));
+  }))
+
+  
+  .get('/users/me/notifiactions', wrapAsync(async (req, res) => {
+    const id = req.user.id; 
+    
+  }))
 
 function createResponse(status, message, data){
   return {
