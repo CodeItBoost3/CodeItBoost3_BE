@@ -7,40 +7,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-//  테스트를 위한 임시 그룹
-// model Group{ 
-//   id Int      @id @default(autoincrement())
-//   name String
-//   userId Int
-
-//   member User[]
-//   posts Post[] @relation("GroupRelation")
-// }
-
-
 model User {
-  id        Int      @id @default(autoincrement())
-  role      Role     @default(USER)
-  nickname  String
-  password  String
-  clientId  String   @unique @map("client_id")
+  id              Int      @id @default(autoincrement())
+  role            Role     @default(USER)
+  nickname        String
+  password        String
+  clientId        String   @unique @map("client_id")
   profileImageUrl String?  @map("profile_image_url")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
-  posts     Post[]   @relation("UserPosts") 
-  scraps    Scrap[]
-  comments     Comment[]
-  commentLikes CommentLike[]
-  // 그룹 추가 시 주석 해제
-  // groups Group[] 
+  posts         Post[]        @relation("UserPosts")
+  scraps        Scrap[]
+  comments      Comment[]
+  commentLikes  CommentLike[]
+  joined_groups GroupMember[]
 }
 
 model Post {
-  postId       Int      @id @default(autoincrement()) 
+  postId       Int      @id @default(autoincrement())
   groupId      Int
-  userId       Int  
+  userId       Int
   nickname     String
   title        String
   content      String
@@ -48,20 +35,19 @@ model Post {
   location     String
   moment       DateTime
   isPublic     Boolean  @default(true)
-  createdAt    DateTime @default(now()) 
+  createdAt    DateTime @default(now())
   likeCount    Int      @default(0)
   commentCount Int      @default(0)
   tag          Json
 
-  author       User     @relation("UserPosts", fields: [userId], references: [id], onDelete: Cascade)
-  // 그룹 추가 시 주석 해제
-  // group        Group    @relation("GroupRelation", fields: [groupId], references: [id], onDelete: Cascade) 
-  comments     Comment[]
-  scraps      Scrap[]
+  author   User      @relation("UserPosts", fields: [userId], references: [id], onDelete: Cascade)
+  group    Group     @relation(fields: [groupId], references: [groupId], onDelete: Cascade)
+  comments Comment[]
+  scraps   Scrap[]
 }
 
 model Scrap {
-  scrapId        Int      @id @default(autoincrement()) 
+  scrapId   Int      @id @default(autoincrement())
   userId    Int
   postId    Int
   isPublic  Boolean  @default(true)
@@ -70,7 +56,7 @@ model Scrap {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   post Post @relation(fields: [postId], references: [postId], onDelete: Cascade)
 
-  @@unique([userId, postId])  // 같은 사용자가 같은 게시글을 두 번 스크랩할 수 없게 설정
+  @@unique([userId, postId]) // 같은 사용자가 같은 게시글을 두 번 스크랩할 수 없게 설정
 }
 
 model Comment {
@@ -84,11 +70,11 @@ model Comment {
   updatedAt DateTime @updatedAt
   likeCount Int      @default(0)
 
-  user      User      @relation(fields: [userId], references: [id])
-  post      Post      @relation(fields: [postId], references: [postId], onDelete: Cascade)
-  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [commentId], onDelete: Cascade)
-  replies   Comment[] @relation("CommentReplies")
-  likes     CommentLike[]
+  user    User          @relation(fields: [userId], references: [id])
+  post    Post          @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  parent  Comment?      @relation("CommentReplies", fields: [parentId], references: [commentId], onDelete: Cascade)
+  replies Comment[]     @relation("CommentReplies")
+  likes   CommentLike[]
 }
 
 model CommentLike {
@@ -97,11 +83,63 @@ model CommentLike {
   commentId Int
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  comment   Comment  @relation(fields: [commentId], references: [commentId], onDelete: Cascade)
-  
-  @@unique([userId, commentId])
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment Comment @relation(fields: [commentId], references: [commentId], onDelete: Cascade)
 
+  @@unique([userId, commentId])
+}
+
+model Group {
+  groupId          Int      @id @default(autoincrement())
+  groupName        String   @unique
+  groupPassword    String?
+  groupDescription String?
+  isPublic         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  imageUrl         String?
+  badgeCount       Int      @default(0)
+
+  members GroupMember[]
+  posts   Post[]
+  badges  Badge[]
+}
+
+model GroupMember {
+  groupId  Int
+  userId   Int
+  role     GroupRole @default(MEMBER)
+  joinedAt DateTime  @default(now())
+  group    Group     @relation(fields: [groupId], references: [groupId])
+  user     User      @relation(fields: [userId], references: [id])
+
+  @@id([groupId, userId])
+  @@index([userId], map: "GroupMember_userId_fkey")
+}
+
+enum GroupRole {
+  MEMBER
+  ADMIN
+}
+
+model Badge {
+  badgeId       Int       @id @default(autoincrement())
+  groupId       Int       @map("group_id")
+  id            String    @unique @default(uuid()) @map("id")
+  badgeName     String    @map("badge_name") @db.VarChar(32)
+  badgeImageUrl String    @map("badge_image_url") @db.VarChar(255)
+  badgeType     BadgeType @map("badge_type")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  group Group @relation(fields: [groupId], references: [groupId], onDelete: Cascade)
+
+  @@unique([groupId, badgeType])
+  @@map("badge")
+}
+
+enum BadgeType {
+  MEMORY_20
+  GROUP_1YEAR
+  LIKE_10000
 }
 
 enum Role {

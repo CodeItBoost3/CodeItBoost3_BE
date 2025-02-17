@@ -1,4 +1,4 @@
-import * as dotenv from 'dotenv';
+import * as dotenv from "dotenv";
 dotenv.config();
 
 
@@ -8,6 +8,7 @@ import morgan from 'morgan';
 import moment from 'moment-timezone';
 import { PrismaClient, Prisma } from '@prisma/client';
 import userRouter from './user/routes/user.js';
+import groupRouter from "./group/routes/group.js";
 import authRouter from './auth/routes/auth.js';
 import postRouter from './post/routes/post.js';
 import commentRouter from "./comment/routes/comment.js";
@@ -46,6 +47,11 @@ app.use(
         { url: "/users", methods: ["POST"] }, // 회원가입 제외
         { url: "/users/validation", methods: ["GET"] }, // 아이디 유일성 검사 제외
         { url: "/auth/login", methods: ["POST"] }, // 로그인 제외
+
+        // 그룹 관련 API 추가
+        { url: "/api/groups", methods: ["GET"] },
+        { url: "/api/groups/search", methods: ["GET"] },
+        /^\/api\/groups\/\d+\/is-public$/,  // 동적 경로를 위해 정규식 사용했음
 
         // 댓글 관련 API 추가
         { url: "/api/posts/:postId/comments", methods: ["POST", "GET"] }, // 댓글 등록, 조회
