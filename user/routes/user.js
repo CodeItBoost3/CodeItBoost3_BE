@@ -20,6 +20,7 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
       profileImageUrl: true,
     }
   })
+  user.profileImageUrl = `${process.env.AWS_CLOUD_FRONT_URL}/${user.profileImageUrl}`;
   res.send(createResponse('success', '내 정보 조회에 성공했습니다.', user))
 }))
 
@@ -188,7 +189,23 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
     catch(err){
       throw CustomError(500, `이미지 삭제에 실패했습니다: ${err.message}}`)
     }
-  }));
+  }))
+
+  // .get('/me/posts', wrapAsync(async (req, res) => {
+  //   const id = req.user?.id
+  //   const { page, pageSize } = req.query
+
+  //   prisma.post.findMany({
+  //     select:{
+  //       title: true,
+  //       tag: true,
+  //     },
+  //     include: {
+  //       author:
+  //     }
+  //   })
+
+  // }))
 
 function createResponse(status, message, data){
   return {
