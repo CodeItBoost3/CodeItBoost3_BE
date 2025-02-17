@@ -130,7 +130,10 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
   
     const file = req.file;
     const path = "profile_image";
-    const fileKey = `${path}/${Date.now()}-${file.originalname}`;
+    const safeFileName = Buffer.from(file.originalname, "utf8").toString("hex");
+    const fileKey = `${path}/${Date.now()}-${safeFileName}`;
+
+
     
     try {
       // 트랜잭션 시작 (기존 삭제 + 새로운 이미지 업로드 + DB 업데이트)
