@@ -7,6 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+
 //  테스트를 위한 임시 그룹
 // model Group{ 
 //   id Int      @id @default(autoincrement())
@@ -16,6 +17,7 @@ datasource db {
 //   member User[]
 //   posts Post[] @relation("GroupRelation")
 // }
+
 
 model User {
   id        Int      @id @default(autoincrement())
