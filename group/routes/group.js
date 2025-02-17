@@ -28,9 +28,11 @@ groupRouter.post("/", authenticateByToken, upload.single("groupImage"), async (r
       return res.status(400).json(createResponse("fail", "이미 존재하는 그룹 이름입니다.", {}));
     }
 
+    let fileKey = null;
     let imageUrl = null;
+
     if (req.file) {
-      const fileKey = `group_images/${Date.now()}-${req.file.originalname}`;
+      fileKey = `group_images/${Date.now()}-${req.file.originalname}`;
       await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
       imageUrl = `${process.env.AWS_CLOUD_FRONT_URL}/${fileKey}`;
     }
@@ -51,7 +53,7 @@ groupRouter.post("/", authenticateByToken, upload.single("groupImage"), async (r
       },
     });
 
-    res.status(201).json(createResponse("success", "그룹이 생성되었습니다.", group));
+    res.status(201).json(createResponse("success", "그룹이 생성되었습니다.", { ...group, imageUrl }));
   } catch (error) {
     next(error);
   }
@@ -156,10 +158,8 @@ groupRouter.get("/", async (req, res, next) => {
 // 5. 그룹 수정
 groupRouter.patch("/:groupId", upload.single("groupImage"), async (req, res, next) => {
   try {
-
     const groupId = Number(req.params.groupId);
-
-    const userId = req.user?.id;
+    const userId = Number(req.user.id);
 
     if (!userId) {
       return res.status(401).json(createResponse("unauthorized", "유저 정보가 없습니다. 로그인 후 이용해주세요.", {}));
@@ -181,15 +181,23 @@ groupRouter.patch("/:groupId", upload.single("groupImage"), async (req, res, nex
     }
     if (req.body.introduction !== undefined) updateData.groupDescription = req.body.introduction;
 
-    const group = await prisma.group.findUnique({ where: { groupId }, select: { imageUrl: true } });
+    const group = await prisma.group.findUnique({
+      where: { groupId },
+      select: { imageUrl: true },
+    });
 
     if (req.file) {
       const fileKey = `group_images/${Date.now()}-${req.file.originalname}`;
-      if (group.imageUrl) {
-        await deleteFromS3(group.imageUrl);
-      }
-      await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
-      updateData.imageUrl = `${process.env.AWS_CLOUD_FRONT_URL}/${fileKey}`;
+
+      await prisma.$transaction(async (tx) => {
+
+        if (group.imageUrl) {
+          await deleteFromS3(group.imageUrl);
+        }
+
+        await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
+        updateData.imageUrl = fileKey;
+      });
     }
 
     const updatedGroup = await prisma.group.update({
@@ -197,7 +205,12 @@ groupRouter.patch("/:groupId", upload.single("groupImage"), async (req, res, nex
       data: updateData,
     });
 
-    res.status(200).json(createResponse("success", "그룹이 성공적으로 수정되었습니다.", updatedGroup));
+    res.status(200).json(
+      createResponse("success", "그룹이 성공적으로 수정되었습니다.", {
+        ...updatedGroup,
+        imageUrl: `${process.env.AWS_CLOUD_FRONT_URL}/${updatedGroup.imageUrl}`,
+      })
+    );
   } catch (error) {
     next(error);
   }
@@ -230,42 +243,55 @@ groupRouter.delete("/:groupId/image", async (req, res, next) => {
 
     res.status(200).json({ status: "success", message: "그룹 대표 이미지가 삭제되었습니다." });
   } catch (error) {
+    console.error(error);
     next(error);
   }
 });
 
 // 7. 그룹 삭제
-groupRouter.post("/:groupId/verify-password", async (req, res, next) => {
+groupRouter.delete("/:groupId", async (req, res, next) => {
   try {
-    const groupId = Number(req.params.groupId);
-    const { password } = req.body;
+    const groupId = parseInt(req.params.groupId);
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json(createResponse("unauthorized", "유저 정보가 없습니다. 로그인 후 이용해주세요.", {}));
+    }
+
+    const membership = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId } },
+      select: { role: true },
+    });
+
+    if (!membership || membership.role !== "ADMIN") {
+      return res.status(403).json(createResponse("forbidden", "관리자만 그룹을 삭제할 수 있습니다.", {}));
+    }
 
     const group = await prisma.group.findUnique({
       where: { groupId },
-      select: { groupPassword: true, isPublic: true },
+      select: { imageUrl: true },
     });
 
     if (!group) {
       return res.status(404).json(createResponse("not_found", "존재하지 않는 그룹입니다.", {}));
     }
 
-    // 공개 그룹
-    if (group.isPublic) {
-      return res.status(200).json(createResponse("success", "공개 그룹입니다.", { verified: true }));
+    if (group.imageUrl) {
+      await deleteFromS3(group.imageUrl);
     }
 
-    // 비공개 그룹
-    const isPasswordValid = await bcrypt.compare(password, group.groupPassword);
-    return res.status(isPasswordValid ? 200 : 401).json(createResponse(
-      isPasswordValid ? "success" : "unauthorized",
-      isPasswordValid ? "비밀번호가 확인되었습니다." : "비밀번호가 일치하지 않습니다.",
-      { verified: isPasswordValid }
-    ));
+    await prisma.$transaction(async (tx) => {
+      await tx.groupMember.deleteMany({ where: { groupId } });
+      await tx.post.deleteMany({ where: { groupId } });
+      await tx.group.delete({ where: { groupId } });
+    });
+
+    res.status(200).json(createResponse("success", "그룹이 성공적으로 삭제되었습니다.", {}));
   } catch (error) {
+    console.error("🔥 그룹 삭제 오류:", error);
     next(error);
   }
 });
-
 
 // 8. 그룹 공개 여부 확인
 groupRouter.get("/:groupId/is-public", async (req, res, next) => {
@@ -307,6 +333,97 @@ groupRouter.post("/:groupId/verify-password", async (req, res, next) => {
 
     res.status(200).json(createResponse("success", "비밀번호가 확인되었습니다.", { verified: true }));
   } catch (error) {
+    next(error);
+  }
+});
+
+// 10. 그룹 가입
+groupRouter.post("/:groupId/join", authenticateByToken, async (req, res, next) => {
+  try {
+    const groupId = Number(req.params.groupId);
+    const userId = req.user.id;
+
+    if (!userId) {
+      return res.status(401).json(createResponse("unauthorized", "로그인이 필요합니다.", {}));
+    }
+
+    const group = await prisma.group.findUnique({
+      where: { groupId },
+      select: { isPublic: true },
+    });
+
+    if (!group) {
+      return res.status(404).json(createResponse("not_found", "존재하지 않는 그룹입니다.", {}));
+    }
+
+    const existingMembership = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId } },
+    });
+
+    if (existingMembership) {
+      return res.status(400).json(createResponse("bad_request", "이미 가입한 그룹입니다.", {}));
+    }
+
+    const newMembership = await prisma.groupMember.create({
+      data: {
+        userId,
+        groupId,
+        role: "MEMBER",
+      },
+    });
+
+    res.status(201).json(createResponse("success", "그룹에 가입되었습니다.", newMembership));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 11. 그룹 탈퇴
+groupRouter.delete("/:groupId/leave", authenticateByToken, async (req, res, next) => {
+  try {
+    const groupId = Number(req.params.groupId);
+    const userId = req.user.id;
+
+    if (!userId) {
+      return res.status(401).json(createResponse("unauthorized", "로그인이 필요합니다.", {}));
+    }
+
+    const group = await prisma.group.findUnique({
+      where: { groupId },
+      select: { groupId: true },
+    });
+
+    if (!group) {
+      return res.status(404).json(createResponse("not_found", "존재하지 않는 그룹입니다.", {}));
+    }
+
+    const membership = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId } },
+    });
+
+    if (!membership) {
+      return res.status(400).json(createResponse("bad_request", "가입하지 않은 그룹입니다.", {}));
+    }
+
+    const isAdmin = membership.role === "ADMIN";
+
+    if (isAdmin) {
+      const adminCount = await prisma.groupMember.count({
+        where: { groupId, role: "ADMIN" },
+      });
+
+      if (adminCount <= 1) {
+        return res.status(400).json(createResponse("bad_request", "마지막 관리자는 탈퇴할 수 없습니다.", {}));
+      }
+    }
+
+    await prisma.groupMember.delete({
+      where: { groupId_userId: { groupId, userId } },
+    });
+
+    res.status(200).json(createResponse("success", "그룹을 탈퇴하였습니다.", {}));
+  } catch (error) {
+    console.error(`❌ 그룹 탈퇴 중 오류 발생: ${error.message}`);
     next(error);
   }
 });
