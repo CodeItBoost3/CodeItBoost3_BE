@@ -79,7 +79,7 @@ commentRouter.post(
 
       // 게시물 존재 확인 추가
       const post = await prisma.post.findUnique({
-        where: { id: parseInt(postId) },
+        where: { postId: parseInt(postId) },
       });
 
       if (!post) {
