@@ -51,6 +51,11 @@ app.use(
         { url: "/api/posts/:postId/comments", methods: ["POST", "GET"] }, // 댓글 등록, 조회
         { url: "/api/comments/:commentId", methods: ["PATCH", "DELETE"] }, // 댓글 수정, 삭제
         { url: "/api/comments/:commentId/like", methods: ["POST"] }, // 댓글 좋아요
+
+        // 게시글 관련 API 추가
+        { url: "/api/groups/:groupId/posts", methods: ["GET"] }, // 게시글 목록 조회
+        { url: "/api/posts/:postId", methods: ["GET"] }, // 게시글 상세 조회
+        { url: "/api/posts/:postId/is-public", methods: ["GET"] }, // 게시글 공개 유무 조회
       ],
     })
   )
