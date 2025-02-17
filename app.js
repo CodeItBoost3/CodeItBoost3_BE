@@ -70,7 +70,7 @@ app.use(
 // 라우팅
 app.use('/users', userRouter);
 app.use('/auth', authRouter);
-app.use('/api/groups', postRouter);
+app.use('/api/groups', groupRouter);
 app.use('/api/posts', postRouter);
 app.use("/api", commentRouter);
 app.use("/api", scrapRouter);
