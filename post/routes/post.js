@@ -41,7 +41,8 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
 
      // S3 업로드 처리
      const path = "post_images";
-     const fileKey = `${path}/${Date.now()}-${req.file.originalname}`;
+     const safeFileName = Buffer.from(req.file.originalname, "utf8").toString("hex");
+     const fileKey = `${path}/${Date.now()}-${safeFileName}`;
      await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
      const imageUrl = `${process.env.AWS_CLOUD_FRONT_URL}/${fileKey}`;
 
@@ -231,10 +232,11 @@ router.put("/:postId", upload.single("image"), async (req, res, next) => {
         await deleteFromS3(existingPost.imageUrl.replace(process.env.AWS_CLOUD_FRONT_URL + "/", ""));
       }
 
-      const path = "post_images";
-      const fileKey = `${path}/${Date.now()}-${req.file.originalname}`;
-      await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
-      updatedImageUrl = `${process.env.AWS_CLOUD_FRONT_URL}/${fileKey}`;
+     const path = "post_images";
+     const safeFileName = Buffer.from(req.file.originalname, "utf8").toString("hex");
+     const fileKey = `${path}/${Date.now()}-${safeFileName}`;
+     await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
+     const imageUrl = `${process.env.AWS_CLOUD_FRONT_URL}/${fileKey}`; 
     }
 
     
