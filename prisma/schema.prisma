@@ -17,10 +17,12 @@ model User {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  posts         Post[]        @relation("UserPosts")
-  scraps        Scrap[]
-  comments      Comment[]
-  commentLikes  CommentLike[]
+
+  posts     Post[]   @relation("UserPosts") 
+  scraps    Scrap[]
+  comments     Comment[]
+  commentLikes CommentLike[]
+  notification Notification[]
   joined_groups GroupMember[]
 }
 
@@ -89,6 +91,29 @@ model CommentLike {
   @@unique([userId, commentId])
 }
 
+model Notification {
+  id        Int @id @default(autoincrement())
+  userId    Int
+  messageId Int
+
+  reciever User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message  Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  isRead   Boolean @default(false) @map("is_read")
+
+  @@unique([userId, messageId])
+}
+
+model Message {
+  id        Int         @id @default(autoincrement())
+  title     String
+  type      MessageType
+  postId    Int?        @map("post_id")
+  commentId Int?        @map("comment_id")
+  content   String
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  notification Notification[]
+}
 model Group {
   groupId          Int      @id @default(autoincrement())
   groupName        String   @unique
@@ -145,4 +170,9 @@ enum BadgeType {
 enum Role {
   USER
   ADMIN
+}
+
+enum MessageType {
+  POST
+  COMMENT
 }

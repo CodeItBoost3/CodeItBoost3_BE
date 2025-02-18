@@ -59,7 +59,6 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
     // 존재하는 유저라면 게시물 등록
     const newPost = await prisma.post.create({
       data: {
-        groupId: parseInt(groupId), // group 합칠 때 삭제
         nickname: user.nickname,
         title,
         content,
@@ -74,10 +73,9 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
         author: {
           connect: { id: user.id }
         },
-        // group 합칠 때 추가 
-        // group:{
-        //   connect: { id: parseInt(groupId)}
-        // }
+        group:{
+          connect: { groupId: parseInt(groupId)}
+        }
       },
     });
 
