@@ -36,7 +36,6 @@ model Post {
   imageUrl     String?
   location     String
   moment       DateTime
-  isPublic     Boolean  @default(true)
   createdAt    DateTime @default(now())
   likeCount    Int      @default(0)
   commentCount Int      @default(0)
@@ -52,7 +51,6 @@ model Scrap {
   scrapId   Int      @id @default(autoincrement())
   userId    Int
   postId    Int
-  isPublic  Boolean  @default(true)
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
