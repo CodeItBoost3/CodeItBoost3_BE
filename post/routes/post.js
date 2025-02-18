@@ -339,35 +339,7 @@ router.post("/:postId/like", async (req, res, next) => {
 
 
 
-//  게시물 공개 여부 확인 API
-router.get("/:postId/is-public", async (req, res, next) => {
-  try {
-    const { postId } = req.params;
-
-    if (!postId || isNaN(parseInt(postId))) {
-      return res.status(400).json({ status: "fail", message: "잘못된 요청입니다." });
-    }
-
-    // 게시물 존재 여부 확인
-    const existingPost = await prisma.post.findUnique({
-      where: { postId: parseInt(postId) },
-      select: { postId: true},
-    });
-
-    if (!existingPost) {
-      return res.status(404).json({ status: "fail", message: "존재하지 않는 게시글입니다." });
-    }
-
-    return res.status(200).json({
-      id: existingPost.postId,
-    });
-  } catch (error) {
-    console.error(error);
-    next(error);
-  }
-});
-
-// 스크랩 추가/삭제 (공개 여부 포함)
+// 스크랩 추가/삭제
 router.post("/:postId/scrap", async (req, res, next) => {
   try {
     const { postId } = req.params;
@@ -409,7 +381,7 @@ router.post("/:postId/scrap", async (req, res, next) => {
       return res.status(200).json(createResponse("success", "스크랩이 취소되었습니다.", {}));
     }
 
-    // 스크랩 추가 (공개 여부 포함)
+    // 스크랩 추가 
     const newScrap = await prisma.scrap.create({
       data: {
         userId: parseInt(userId),
