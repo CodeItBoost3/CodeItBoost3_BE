@@ -16,6 +16,7 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
     where: { id: req.user.id },
     select: {
       id: true,
+      clientId: true,
       nickname: true,
       profileImageUrl: true,
     }
