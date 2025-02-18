@@ -38,7 +38,8 @@ groupRouter.post("/", upload.single("groupImage"), async (req, res, next) => {
     let imageUrl = null;
 
     if (req.file) {
-      const fileKey = `group_images/${Date.now()}-${req.file.originalname}`;
+      const safeFileName = Buffer.from(req.file.originalname, "utf8").toString("hex");
+      const fileKey = `group_images/${Date.now()}-${safeFileName}`;
       await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
       imageUrl = `${process.env.AWS_CLOUD_FRONT_URL}/${fileKey}`;
     }
