@@ -1,16 +1,17 @@
 import express from 'express';
 import { prisma } from '../../app.js';
-import { createUser, updateUser }from '../userStructs.js';
+import { createUser, updateUser } from '../userStructs.js';
 import { assert } from 'superstruct';
 import bcrypt from 'bcrypt';
 import { wrapAsync } from '../../app.js';
 import { CustomError } from '../../error/error.js';
 import { upload } from '../../config/multer.js';
 import { deleteFromS3, uploadToS3 } from '../../config/s3.js';
+import moment from 'moment-timezone';
 
 const userRouter = express.Router();
 
-userRouter.get('/me', wrapAsync( async (req, res, next) => {
+userRouter.get('/me', wrapAsync(async (req, res, next) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user.id },
     select: {
@@ -26,10 +27,10 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
 
   .post('/', wrapAsync(async (req, res, next) => {
     console.log(req.body);
-    try{
+    try {
       assert(req.body, createUser);
     }
-    catch(err){
+    catch (err) {
       console.error(err.message);
       throw new CustomError(400, '가입하려는 유저 정보가 올바르지 않습니다.');
     }
@@ -50,14 +51,14 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
 
   .patch('/me', wrapAsync(async (req, res) => {
     const id = req.user.id;
-    try{
+    try {
       assert(req.body, updateUser);
     }
-    catch(err){
+    catch (err) {
       throw new CustomError(400, '수정하려는 유저 정보가 올바르지 않습니다.');
     }
     const user = await prisma.user.update({
-      where: { 
+      where: {
         id
       },
       data: req.body,
@@ -68,7 +69,7 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
 
     res.send(createResponse('success', '정보 수정이 완료되었습니다.', user));
   }))
-  
+
   .patch('/me/password', wrapAsync(async (req, res) => {
     // 유저 비밀번호 조회
     console.log(req.user);
@@ -76,19 +77,19 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
     const { currentPassword, newPassword } = req.body;
     console.log(currentPassword, newPassword);
     const user = await prisma.user.findUnique({
-      select:{
+      select: {
         password: true,
       },
       where: {
         id,
       },
     })
-    if(!user){
+    if (!user) {
       throw new CustomError(404, '인증된 유저가 존재하지 않습니다.');
     }
 
     // 검증
-    if(!await bcrypt.compare(currentPassword, user.password)){
+    if (!await bcrypt.compare(currentPassword, user.password)) {
       throw new CustomError(400, '비밀번호가 일치하지 않습니다.');
     }
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
@@ -105,7 +106,7 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
 
     res.send(createResponse('success', '비밀번호 변경에 성공했습니다.', {}));
   }))
-  
+
   .get('/validation', wrapAsync(async (req, res, next) => {
     const clientId = req.query["client-id"];
     const user = await prisma.user.findUnique({
@@ -113,28 +114,28 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
         clientId
       }
     });
-    if(user){
+    if (user) {
       throw new CustomError(400, '이미 존재하는 ID입니다.');
     }
-    else{
+    else {
       res.send(createResponse('success', '사용 가능한 ID입니다.', {}));
     }
-  
+
   }))
 
   .patch('/me/profile-image', upload.single('profile'), wrapAsync(async (req, res) => {
-    const id = req.user.id; 
+    const id = req.user.id;
     if (!req.file) {
       throw new CustomError(400, '파일이 존재하지 않습니다.');
     }
-  
+
     const file = req.file;
     const path = "profile_image";
     const safeFileName = Buffer.from(file.originalname, "utf8").toString("hex");
     const fileKey = `${path}/${Date.now()}-${safeFileName}`;
 
 
-    
+
     try {
       // 트랜잭션 시작 (기존 삭제 + 새로운 이미지 업로드 + DB 업데이트)
       await prisma.$transaction(async (tx) => {
@@ -143,22 +144,22 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
           where: { id },
           select: { profileImageUrl: true },
         });
-  
+
         if (user?.profileImageUrl) {
           await deleteFromS3(user.profileImageUrl);
         }
-  
+
         // 새 프로필 이미지 업로드 (S3)
         await uploadToS3(fileKey, file.buffer, file.mimetype);
         const publicUrl = `${process.env.AWS_CLOUD_FRONT_URL}/${fileKey}`;
         const s3Url = fileKey;
-  
+
         // DB에 새로운 프로필 이미지 URL 업데이트
         await tx.user.update({
           data: { profileImageUrl: s3Url },
           where: { id },
         });
-  
+
         // 클라이언트에게 응답
         res.send(
           createResponse("success", "프로필 이미지가 업데이트 되었습니다.", {
@@ -172,13 +173,13 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
   }))
 
   .delete('/me/profile-image', wrapAsync(async (req, res) => {
-    const id = req.user.id; 
+    const id = req.user.id;
     const user = await prisma.user.findUnique({
       where: { id },
       select: { profileImageUrl: true },
     });
-    try{
-      if(user?.profileImageUrl){
+    try {
+      if (user?.profileImageUrl) {
         await deleteFromS3(user.profileImageUrl);
         await prisma.user.update({
           where: { id },
@@ -189,36 +190,36 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
       }
       res.send(createResponse('success', '프로필 사진이 삭제되었습니다.', {}));
     }
-    catch(err){
+    catch (err) {
       throw CustomError(500, `이미지 삭제에 실패했습니다: ${err.message}}`)
     }
   }))
 
   .get('/me/posts', wrapAsync(async (req, res) => {
     const userId = req.user.id
-    const { page = '1', pageSize = '5'} = req.query
+    const { page = '1', pageSize = '5' } = req.query
 
-    const orderBy = {createdAt: 'desc'}
-    const take = parseInt(pageSize); 
+    const orderBy = { createdAt: 'desc' }
+    const take = parseInt(pageSize);
     const skip = (parseInt(page) - 1) * take;
-  
+
 
     const totalItemCount = await prisma.post.count({
-      where: { userId } 
+      where: { userId }
     });
     const totalPages = Math.ceil(totalItemCount / take);
-    if( totalPages == 0){
-      return res.send(createResponse('success', '내가 작성한 추억을 불러왔습니다.',{
+    if (totalPages == 0) {
+      return res.send(createResponse('success', '작성한 추억이 존재하지 않습니다.', {
         posts: [],
         currentPage: parseInt(page),
         totalPages,
       }));
     }
-    if( totalPages < parseInt(page)){
+    if (totalPages < parseInt(page)) {
       throw new CustomError(404, '존재하지 않는 페이지 입니다.');
     }
     const posts = await prisma.post.findMany({
-      select:{
+      select: {
         title: true,
         content: true,
         tag: true,
@@ -227,19 +228,19 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
         likeCount: true,
         commentCount: true,
 
-        author:{
-          select:{
+        author: {
+          select: {
             nickname: true,
           }
         },
-        group:{
-          select:{
+        group: {
+          select: {
             groupName: true,
             isPublic: true,
           }
         }
       },
-      where:{
+      where: {
         userId
       },
       orderBy,
@@ -247,7 +248,7 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
       skip
     });
 
-    res.send(createResponse('success', '내가 작성한 추억을 불러왔습니다.',{
+    res.send(createResponse('success', '내가 작성한 추억을 불러왔습니다.', {
       posts,
       currentPage: parseInt(page),
       totalPages,
@@ -256,39 +257,39 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
 
   .get('/me/comments', wrapAsync(async (req, res) => {
     const userId = req.user.id
-    const { page = '1', pageSize = '5'} = req.query
+    const { page = '1', pageSize = '5' } = req.query
 
-    const orderBy = {createdAt: 'desc'}
-    const take = parseInt(pageSize); 
+    const orderBy = { createdAt: 'desc' }
+    const take = parseInt(pageSize);
     const skip = (parseInt(page) - 1) * take;
-  
+
     const totalItemCount = await prisma.comment.count({
-      where: { userId } 
+      where: { userId }
     });
     const totalPages = Math.ceil(totalItemCount / take);
-    if( totalPages == 0){
-      return res.send(createResponse('success', '내가 작성한 추억을 불러왔습니다.',{
+    if (totalPages == 0) {
+      return res.send(createResponse('success', '작성한 댓글이 존재하지 않습니다.', {
         comments: [],
         currentPage: parseInt(page),
         totalPages,
       }));
     }
-    if( totalPages < parseInt(page)){
+    if (totalPages < parseInt(page)) {
       throw new CustomError(404, '존재하지 않는 페이지 입니다.');
     }
     const comments = await prisma.comment.findMany({
-      select:{
+      select: {
         content: true,
         createdAt: true,
         likeCount: true,
-        post:{
-          select:{
+        post: {
+          select: {
             postId: true,
             title: true,
           }
         }
       },
-      where:{
+      where: {
         userId
       },
       orderBy,
@@ -296,20 +297,90 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
       skip
     });
 
-    res.send(createResponse('success', '내가 작성한 댓글을 불러왔습니다..',{
+    res.send(createResponse('success', '내가 작성한 댓글을 불러왔습니다.', {
       comments,
       currentPage: parseInt(page),
       totalPages,
     }));
   }))
 
-  
-  .get('/users/me/notifiactions', wrapAsync(async (req, res) => {
-    const id = req.user.id; 
-    
+
+
+  .get('/me/notifications', wrapAsync(async (req, res) => {
+    const userId = req.user.id;
+    const { page = '1', pageSize = '5' } = req.query
+
+    const orderBy = { createdAt: 'desc' }
+    const take = parseInt(pageSize);
+    const skip = (parseInt(page) - 1) * take;
+
+    const totalItemCount = await prisma.notification.count({
+      where: { userId }
+    });
+    const totalPages = Math.ceil(totalItemCount / take);
+    if (totalPages == 0) {
+      return res.send(createResponse('success', '알림이 존재하지 않습니다.', {
+        notifications: [],
+        currentPage: parseInt(page),
+        totalPages,
+      }));
+    }
+    if (totalPages < parseInt(page)) {
+      throw new CustomError(404, '더 불러올 알림이 없습니다.');
+    }
+    const notifications = await prisma.notification.findMany({
+      where: { userId },
+      select:{
+        id: true,
+        message: {
+          select: {
+            createdAt: true,
+            title: true,
+            content: true,
+            type: true,
+            postId: true
+          }
+        }
+      },
+      take,
+      skip,
+      orderBy,
+    });
+
+    // 데이터 변환: 필요한 필드만 남기고, 시간 포맷 변경
+    const transformedNotifications = notifications.map(notification => ({
+      id: notification.id,
+      time: moment(notification.message.createdAt).format("YYYY-MM-DD HH:mm:ss"),
+      title: notification.message.title,
+      content: notification.message.content,
+      type: notification.message.type,
+      postId: notification.message.postId
+    }));
+    res.send(createResponse('success', '수신받은 알림을 받아왔습니다.', {
+      transformedNotifications,
+      currentPage: parseInt(page),
+      totalPages,
+    }));
   }))
 
-function createResponse(status, message, data){
+  .delete('/me/notifications/:notificationId', wrapAsync(async (req, res) =>{
+    const notificationId = parseInt(req.params.notificationId);
+    const userId = req.user.id;
+    await prisma.notification.delete({
+      where: { id: notificationId },
+    });
+    res.send(createResponse('success', `${notificationId}번 알림을 삭제하였습니다.`, {}));
+  }))
+
+  .delete('/me/notifications', wrapAsync(async (req, res) =>{
+    const userId = req.user.id;
+    await prisma.notification.deleteMany({
+      where: { userId },
+    });
+    res.send(createResponse('success', '알림을 모두 지웠습니다.', {}));
+  }));
+
+function createResponse(status, message, data) {
   return {
     status,
     message,

@@ -17,12 +17,11 @@ model User {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-
-  posts     Post[]   @relation("UserPosts") 
-  scraps    Scrap[]
-  comments     Comment[]
-  commentLikes CommentLike[]
-  notification Notification[]
+  posts         Post[]         @relation("UserPosts")
+  scraps        Scrap[]
+  comments      Comment[]
+  commentLikes  CommentLike[]
+  notification  Notification[]
   joined_groups GroupMember[]
 }
 
@@ -96,9 +95,10 @@ model Notification {
   userId    Int
   messageId Int
 
-  reciever User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  message  Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  isRead   Boolean @default(false) @map("is_read")
+  reciever  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  isRead    Boolean  @default(false) @map("is_read")
 
   @@unique([userId, messageId])
 }
@@ -114,6 +114,7 @@ model Message {
 
   notification Notification[]
 }
+
 model Group {
   groupId          Int      @id @default(autoincrement())
   groupName        String   @unique
