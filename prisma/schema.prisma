@@ -173,6 +173,6 @@ enum Role {
 }
 
 enum MessageType {
-  POST
-  COMMENT
+  COMMENT_CREATED
+  REPLY_CREATED
 }
