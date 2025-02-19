@@ -22,6 +22,21 @@ import { authenticateByToken } from './auth/routes/authToken.js';
 import { checkDBConnection } from './config/db.js';
 
 
+// app.js에 글로벌 에러 핸들러 추가
+
+// 1. 동기적 에러 처리 (예상치 못한 예외)
+process.on('uncaughtException', (err) => {
+    console.error('❌ Uncaught Exception:', err.message);
+    console.error(err.stack); // 에러의 전체 스택 트레이스를 로그에 출력
+});
+
+// 2. 비동기적 에러 처리 (처리되지 않은 Promise 거부)
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise);
+    console.error('🚨 Reason:', reason);
+});
+
+
 export const prisma = new PrismaClient();
 
 checkDBConnection();
