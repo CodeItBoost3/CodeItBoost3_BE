@@ -14,7 +14,7 @@ groupRouter.post("/", upload.single("groupImage"), async (req, res, next) => {
   try {
     let jsonData = req.body.data ? JSON.parse(req.body.data) : {};
     const { name, introduction, password, isPublic: isPublicStr } = jsonData;
-    const isPublic = isPublicStr === "true" || isPublicStr === true;
+    const isPublic = jsonData.isPublic === "true" || jsonData.isPublic === true || jsonData.isPublic === undefined;
     const userId = req.user.id;
 
     if (!userId) {
