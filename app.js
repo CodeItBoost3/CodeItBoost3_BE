@@ -45,12 +45,12 @@ export function wrapAsync(fn) {
 // CSP 정책 수정 (모든 도메인에서 SSE 허용)
 app.use(
   helmet({
-      contentSecurityPolicy: {
-          directives: {
-              defaultSrc: ["'self'"],
-              connectSrc: ["*"], // 🔹 모든 도메인 허용 (보안 주의)
-          },
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        connectSrc: ["*"],
       },
+    },
   })
 );
 
