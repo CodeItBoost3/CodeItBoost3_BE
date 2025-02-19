@@ -27,7 +27,7 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
     assert(req.body, createPost);
 
     const { groupId } = req.params; 
-    const { title, content, tag, location, moment, isPublic } = req.body;
+    const { title, content, tag, location, moment} = req.body;
     const userId = req.user?.id;
 
     if (!groupId || isNaN(groupId)) {
@@ -60,13 +60,13 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
     // 존재하는 유저라면 게시물 등록
     const newPost = await prisma.post.create({
       data: {
+        
         nickname: user.nickname,
         title,
         content,
         imageUrl,
         location,
         moment: new Date(moment),
-        isPublic: isPublic === "true",
         likeCount: 0,
         commentCount: 0,
         tag: typeof tag === "string" ? JSON.parse(tag) : tag,
@@ -74,7 +74,8 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
         author: {
           connect: { id: user.id }
         },
-        group:{
+       
+         group:{
           connect: { groupId: parseInt(groupId)}
         }
       },
@@ -92,7 +93,7 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
 router.get("/:groupId/posts", async (req, res, next) => {
   try {
     const { groupId } = req.params;
-    const { page = 1, pageSize = 10, sortBy = "latest", keyword, isPublic } = req.query;
+    const { page = 1, pageSize = 10, sortBy = "latest", keyword } = req.query;
 
     if (!groupId || isNaN(groupId)) {
       return res.status(400).json(createResponse("fail", "잘못된 요청입니다.", {}));
@@ -118,9 +119,6 @@ router.get("/:groupId/posts", async (req, res, next) => {
       ];
     }
 
-    if (isPublic !== undefined) {
-      whereClause.isPublic = isPublic === "true";
-    }
 
     const posts = await prisma.post.findMany({
       where: whereClause,
@@ -198,7 +196,7 @@ router.get("/:postId", async (req, res, next) => {
 router.put("/:postId", upload.single("image"), async (req, res, next) => {
   try {
     const { postId } = req.params;
-    const { title, content, tag, location, moment, isPublic } = req.body;
+    const { title, content, tag, location, moment } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -236,7 +234,7 @@ router.put("/:postId", upload.single("image"), async (req, res, next) => {
      const safeFileName = Buffer.from(req.file.originalname, "utf8").toString("hex");
      const fileKey = `${path}/${Date.now()}-${safeFileName}`;
      await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
-     const imageUrl = `${process.env.AWS_CLOUD_FRONT_URL}/${fileKey}`; 
+     updatedImageUrl = `${process.env.AWS_CLOUD_FRONT_URL}/${fileKey}`;
     }
 
     
@@ -249,7 +247,6 @@ router.put("/:postId", upload.single("image"), async (req, res, next) => {
         imageUrl: updatedImageUrl,
         location,
         moment: new Date(moment),
-        isPublic: isPublic === "true",
         tag: typeof tag === "string" ? JSON.parse(tag) : tag,
       },
     });
@@ -342,46 +339,12 @@ router.post("/:postId/like", async (req, res, next) => {
 
 
 
-//  게시물 공개 여부 확인 API
-router.get("/:postId/is-public", async (req, res, next) => {
-  try {
-    const { postId } = req.params;
-
-    if (!postId || isNaN(parseInt(postId))) {
-      return res.status(400).json({ status: "fail", message: "잘못된 요청입니다." });
-    }
-
-    // 게시물 존재 여부 확인
-    const existingPost = await prisma.post.findUnique({
-      where: { postId: parseInt(postId) },
-      select: { postId: true, isPublic: true },
-    });
-
-    if (!existingPost) {
-      return res.status(404).json({ status: "fail", message: "존재하지 않는 게시글입니다." });
-    }
-
-    return res.status(200).json({
-      id: existingPost.postId,
-      isPublic: existingPost.isPublic,
-    });
-  } catch (error) {
-    console.error(error);
-    next(error);
-  }
-});
-
-// 스크랩 추가/삭제 (공개 여부 포함)
+// 스크랩 추가/삭제
 router.post("/:postId/scrap", async (req, res, next) => {
   try {
     const { postId } = req.params;
-    const userId = req.user?.id || 1;
-    let { isPublic = true } = req.body; 
+    const userId = req.user?.id;
 
-    
-    if (typeof isPublic === "string") {
-      isPublic = isPublic === "true";  // "false"면 false, "true"면 true
-    }
 
     if (!postId || isNaN(parseInt(postId))) {
       return res.status(400).json(createResponse("fail", "잘못된 요청입니다.", {}));
@@ -418,12 +381,11 @@ router.post("/:postId/scrap", async (req, res, next) => {
       return res.status(200).json(createResponse("success", "스크랩이 취소되었습니다.", {}));
     }
 
-    // 스크랩 추가 (공개 여부 포함)
+    // 스크랩 추가 
     const newScrap = await prisma.scrap.create({
       data: {
         userId: parseInt(userId),
         postId: parseInt(postId),
-        isPublic: isPublic,  
       },
     });
 
