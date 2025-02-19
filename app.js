@@ -97,11 +97,11 @@ app.use(
 // 라우팅
 app.use('/users', userRouter);
 app.use('/auth', authRouter);
+app.use("/api/groups", groupRouter);
 app.use('/api/groups', postRouter);
 app.use('/api/posts', postRouter);
 app.use("/api", commentRouter);
 app.use("/api", scrapRouter);
-app.use("/api", groupRouter);
 app.use("/sse", sseRouter);
 
 // 에러 핸들러(마지막에 위치 해야함)
