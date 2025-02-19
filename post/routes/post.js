@@ -19,7 +19,7 @@ function createResponse(status, message, data) {
 }
 
 //  게시물 등록 API 
-router.post("/:groupId/posts", upload.single("image"), async (req, res, next) => {
+router.post("/groups/:groupId/posts", upload.single("image"), async (req, res, next) => {
   try {
 
 
@@ -57,10 +57,10 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
     }
     
     
+    
     // 존재하는 유저라면 게시물 등록
     const newPost = await prisma.post.create({
       data: {
-        
         nickname: user.nickname,
         title,
         content,
@@ -74,7 +74,6 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
         author: {
           connect: { id: user.id }
         },
-       
          group:{
           connect: { groupId: parseInt(groupId)}
         }
@@ -90,7 +89,7 @@ router.post("/:groupId/posts", upload.single("image"), async (req, res, next) =>
 
 
 //  게시물 목록 조회 API
-router.get("/:groupId/posts", async (req, res, next) => {
+router.get("/groups/:groupId/posts", async (req, res, next) => {
   try {
     const { groupId } = req.params;
     const { page = 1, pageSize = 10, sortBy = "latest", keyword } = req.query;
@@ -155,7 +154,7 @@ router.get("/:groupId/posts", async (req, res, next) => {
 });
 
 //  게시물 상세 조회 API
-router.get("/:postId", async (req, res, next) => {
+router.get("/posts/:postId", async (req, res, next) => {
   try {
     const { postId } = req.params;
 
@@ -193,7 +192,7 @@ router.get("/:postId", async (req, res, next) => {
 });
 
 //  게시물 수정 API (로그인한 사용자만 수정 가능)
-router.put("/:postId", upload.single("image"), async (req, res, next) => {
+router.put("/posts/:postId", upload.single("image"), async (req, res, next) => {
   try {
     const { postId } = req.params;
     const { title, content, tag, location, moment } = req.body;
@@ -259,7 +258,7 @@ router.put("/:postId", upload.single("image"), async (req, res, next) => {
 });
 
 //  게시물 삭제 API (로그인한 사용자만 삭제 가능)
-router.delete("/:postId", async (req, res, next) => {
+router.delete("/posts/:postId", async (req, res, next) => {
   try {
     const { postId } = req.params;
     const userId = req.user?.id
@@ -305,7 +304,7 @@ router.delete("/:postId", async (req, res, next) => {
 });
 
 // 게시글 공감 누르기 (좋아요)
-router.post("/:postId/like", async (req, res, next) => {
+router.post("/posts/:postId/like", async (req, res, next) => {
   try {
     const { postId } = req.params;
 
@@ -340,7 +339,7 @@ router.post("/:postId/like", async (req, res, next) => {
 
 
 // 스크랩 추가/삭제
-router.post("/:postId/scrap", async (req, res, next) => {
+router.post("/posts/:postId/scrap", async (req, res, next) => {
   try {
     const { postId } = req.params;
     const userId = req.user?.id;
