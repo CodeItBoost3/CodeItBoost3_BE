@@ -6,7 +6,6 @@ import bcrypt from 'bcrypt';
 import { wrapAsync } from '../../app.js';
 import { CustomError } from '../../error/error.js';
 import { upload } from '../../config/multer.js';
-import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { deleteFromS3, uploadToS3 } from '../../config/s3.js';
 
 const userRouter = express.Router();
@@ -208,6 +207,13 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
       where: { userId } 
     });
     const totalPages = Math.ceil(totalItemCount / take);
+    if( totalPages == 0){
+      return res.send(createResponse('success', '내가 작성한 추억을 불러왔습니다.',{
+        posts: [],
+        currentPage: parseInt(page),
+        totalPages,
+      }));
+    }
     if( totalPages < parseInt(page)){
       throw new CustomError(404, '존재하지 않는 페이지 입니다.');
     }
@@ -241,7 +247,7 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
       skip
     });
 
-    res.send(createResponse('success', '내가 작성한 추억을 불러왔습니다..',{
+    res.send(createResponse('success', '내가 작성한 추억을 불러왔습니다.',{
       posts,
       currentPage: parseInt(page),
       totalPages,
@@ -260,6 +266,13 @@ userRouter.get('/me', wrapAsync( async (req, res, next) => {
       where: { userId } 
     });
     const totalPages = Math.ceil(totalItemCount / take);
+    if( totalPages == 0){
+      return res.send(createResponse('success', '내가 작성한 추억을 불러왔습니다.',{
+        comments: [],
+        currentPage: parseInt(page),
+        totalPages,
+      }));
+    }
     if( totalPages < parseInt(page)){
       throw new CustomError(404, '존재하지 않는 페이지 입니다.');
     }
