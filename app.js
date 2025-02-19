@@ -6,6 +6,9 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import moment from 'moment-timezone';
+import helmet from 'helmet';
+import { registerNotificationHandler } from './notification/notificationService.js';
+
 import { PrismaClient, Prisma } from '@prisma/client';
 import userRouter from './user/routes/user.js';
 import authRouter from './auth/routes/auth.js';
@@ -13,6 +16,7 @@ import postRouter from './post/routes/post.js';
 import commentRouter from "./comment/routes/comment.js";
 import scrapRouter from "./scrap/routes/scrap.js";
 import groupRouter from "./group/routes/group.js"
+import { sseRouter } from './config/sse.js';
 import { errorHandler } from './error/error.js';
 import { authenticateByToken } from './auth/routes/authToken.js';
 import { checkDBConnection } from './config/db.js';
@@ -38,6 +42,19 @@ export function wrapAsync(fn) {
   };
 }
 
+// CSP 정책 수정 (모든 도메인에서 SSE 허용)
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        connectSrc: ["*"],
+      },
+    },
+  })
+);
+
+registerNotificationHandler();
 // 토큰 인증
 app.use(
 
@@ -70,6 +87,7 @@ app.use('/api/posts', postRouter);
 app.use("/api", commentRouter);
 app.use("/api", scrapRouter);
 app.use("/api", groupRouter);
+app.use("/sse", sseRouter);
 
 // 에러 핸들러(마지막에 위치 해야함)
 app.use(errorHandler());

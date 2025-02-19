@@ -2,6 +2,7 @@ import express from "express";
 import { prisma } from "../../app.js";
 import jwt from "jsonwebtoken"; // JWT 검증을 위해 추가
 import { Prisma } from "@prisma/client"; // Prisma 오류 처리를 위해 추가
+import eventBus from "../../config/eventBus.js";
 
 const commentRouter = express.Router();
 
@@ -122,6 +123,23 @@ commentRouter.post(
           nickname: user.nickname,
         },
       });
+
+      // 댓글/대댓글 작성 이벤트 발생
+      if (parentId) {
+        eventBus.emit("reply_created", {
+          postId: parseInt(postId),
+          parentId,
+          commenterId: userId,
+          content: comment.content,
+        });
+      }
+      else {
+        eventBus.emit("comment_created", {
+          postId: parseInt(postId),
+          commenterId: userId,
+          content: comment.content,
+        });
+      }
 
       res
         .status(201)
