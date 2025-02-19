@@ -17,12 +17,11 @@ model User {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-
-  posts     Post[]   @relation("UserPosts") 
-  scraps    Scrap[]
-  comments     Comment[]
-  commentLikes CommentLike[]
-  notification Notification[]
+  posts         Post[]         @relation("UserPosts")
+  scraps        Scrap[]
+  comments      Comment[]
+  commentLikes  CommentLike[]
+  notification  Notification[]
   joined_groups GroupMember[]
 }
 
@@ -36,7 +35,6 @@ model Post {
   imageUrl     String?
   location     String
   moment       DateTime
-  isPublic     Boolean  @default(true)
   createdAt    DateTime @default(now())
   likeCount    Int      @default(0)
   commentCount Int      @default(0)
@@ -52,7 +50,6 @@ model Scrap {
   scrapId   Int      @id @default(autoincrement())
   userId    Int
   postId    Int
-  isPublic  Boolean  @default(true)
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -96,9 +93,10 @@ model Notification {
   userId    Int
   messageId Int
 
-  reciever User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  message  Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  isRead   Boolean @default(false) @map("is_read")
+  reciever  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  isRead    Boolean  @default(false) @map("is_read")
 
   @@unique([userId, messageId])
 }
@@ -114,6 +112,7 @@ model Message {
 
   notification Notification[]
 }
+
 model Group {
   groupId          Int      @id @default(autoincrement())
   groupName        String   @unique
@@ -173,6 +172,6 @@ enum Role {
 }
 
 enum MessageType {
-  POST
-  COMMENT
+  COMMENT_CREATED
+  REPLY_CREATED
 }

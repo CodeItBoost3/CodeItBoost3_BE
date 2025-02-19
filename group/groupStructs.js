@@ -3,7 +3,7 @@ import { object, string, number, boolean, optional, size, min, max } from "super
 export const CreateGroupStruct = object({
     name: size(string(), 2, 36),
     userId: number(),
-    password: size(string(), 6, 16),
+    password: optional(size(string(), 0, 16)),
     imageUrl: optional(string()),
     isPublic: boolean(),
     introduction: optional(size(string(), 0, 500)),

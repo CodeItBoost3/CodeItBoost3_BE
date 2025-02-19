@@ -15,7 +15,7 @@ function createResponse(status, message, data) {
 // 스크랩 목록 조회 API (좋아요순, 댓글순, 최신순, 키워드 검색 추가)
 router.get("/scraps", async (req, res, next) => {
     try {
-      const { page = 1, pageSize = 10, sortBy = "latest", isPublic, keyword } = req.query;
+      const { page = 1, pageSize = 10, sortBy = "latest", keyword } = req.query;
       const userId = req.user?.id; // 로그인한 사용자
 
       // 로그인 여부 
@@ -26,20 +26,12 @@ router.get("/scraps", async (req, res, next) => {
       const take = parseInt(pageSize);
       const skip = (parseInt(page) - 1) * take;
   
-      // 문자열 "true" / "false" 변환 (Boolean 필터 적용)
-      let isPublicFilter;
-      if (isPublic !== undefined) {
-        isPublicFilter = isPublic === "true"; // "true" → true, "false" → false
-      }
   
       // 스크랩 조회 쿼리
       const whereClause = {
         userId: parseInt(userId),
       };
   
-      if (isPublicFilter !== undefined) {
-        whereClause.isPublic = isPublicFilter; 
-      }
   
       // 키워드 검색 기능 추가 (제목, 내용, 태그에서 검색)
       if (keyword) {

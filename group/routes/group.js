@@ -4,19 +4,26 @@ import { prisma } from "../../app.js";
 import { CreateGroupStruct, UpdateGroupStruct } from "../groupStructs.js";
 import { assert } from "superstruct";
 import { upload } from '../../config/multer.js';
-import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { deleteFromS3, uploadToS3 } from '../../config/s3.js';
-import { authenticateByToken } from "../../auth/routes/authToken.js";
 import { calculateDday } from "../utils/groupUtils.js";
 
 const groupRouter = express.Router();
 
 // 1. 그룹 생성
-groupRouter.post("/", authenticateByToken, upload.single("groupImage"), async (req, res, next) => {
+groupRouter.post("/", upload.single("groupImage"), async (req, res, next) => {
   try {
-    const { name, introduction, password } = req.body;
-    const userId = Number(req.body.userId);
-    const isPublic = req.body.isPublic === "true";
+    let jsonData = req.body.data ? JSON.parse(req.body.data) : {};
+    const { name, introduction, password, isPublic: isPublicStr } = jsonData;
+    const isPublic = isPublicStr === "true" || isPublicStr === true;
+    const userId = req.user.id;
+
+    if (!userId) {
+      return res.status(401).json({ status: "unauthorized", message: "로그인이 필요합니다." });
+    }
+
+    if (!isPublic && (!password || password.length < 6 || password.length > 16)) {
+      return res.status(400).json({ status: "fail", message: "6~16자 사이의 비밀번호를 입력하세요." });
+    }
 
     assert({ name, isPublic, introduction, userId, password }, CreateGroupStruct);
 
@@ -28,28 +35,33 @@ groupRouter.post("/", authenticateByToken, upload.single("groupImage"), async (r
       return res.status(400).json(createResponse("fail", "이미 존재하는 그룹 이름입니다.", {}));
     }
 
-    let fileKey = null;
     let imageUrl = null;
 
     if (req.file) {
-      fileKey = `group_images/${Date.now()}-${req.file.originalname}`;
+      const safeFileName = Buffer.from(req.file.originalname, "utf8").toString("hex");
+      const fileKey = `group_images/${Date.now()}-${safeFileName}`;
       await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
       imageUrl = `${process.env.AWS_CLOUD_FRONT_URL}/${fileKey}`;
     }
 
+    const hashedPassword = isPublic ? null : await bcrypt.hash(password, 10);
+
     const group = await prisma.group.create({
       data: {
         groupName: name,
-        groupPassword: await bcrypt.hash(password, 10),
+        groupPassword: hashedPassword,
         isPublic,
         groupDescription: introduction,
         imageUrl,
         members: {
           create: {
-            user: { connect: { id: parseInt(userId) } },
+            userId: userId,
             role: "ADMIN",
           },
         },
+      },
+      include: {
+        members: true,
       },
     });
 
@@ -81,9 +93,13 @@ groupRouter.get("/search", async (req, res, next) => {
 });
 
 // 3. 그룹 상세 조회
-groupRouter.get("/:groupId", authenticateByToken, async (req, res, next) => {
+groupRouter.get("/:groupId", async (req, res, next) => {
   try {
-    const group = await prisma.group.findUnique({ where: { groupId: parseInt(req.params.groupId) }, include: { members: true, posts: true } });
+    const group = await prisma.group.findUnique({
+      where: { groupId: parseInt(req.params.groupId) },
+      include: { members: true, posts: true }
+    });
+
     if (!group) return res.status(404).json({ status: "not_found", message: "존재하지 않는 그룹입니다." });
     res.status(200).json({
       status: "success",
@@ -106,21 +122,30 @@ groupRouter.get("/:groupId", authenticateByToken, async (req, res, next) => {
 // 4. 그룹 목록 조회
 groupRouter.get("/", async (req, res, next) => {
   try {
-    const { type, sortBy = "mostLiked", keyword } = req.query;
+    const { type, sortBy = "mostLiked", keyword, page = 1 } = req.query;
 
-    let isPublicFilter = type === "public" ? true : type === "private" ? false : null;
+    const pageNumber = Math.max(1, parseInt(page));
 
-    let orderBy = { createdAt: "desc" };
+    const isPublicFilter = type === "public";
+    const pageSize = type === "public" ? 8 : 20;
 
-    if (sortBy === "latest") orderBy = { createdAt: "desc" };
-    else if (sortBy === "mostPosted") orderBy = { posts: { _count: "desc" } };
-    else if (sortBy === "mostBadge") orderBy = { badgeCount: "desc" };
+    const groupNameFilter = keyword ? { contains: keyword.toLowerCase() } : undefined;
+
+    let orderBy = [{ posts: { _count: "desc" } }]; // 기본값: 좋아요순
+    if (sortBy === "latest") orderBy = [{ createdAt: "desc" }];
+    if (sortBy === "mostPosted") orderBy = [{ posts: { _count: "desc" } }];
+    if (sortBy === "mostBadge") orderBy = [{ badgeCount: "desc" }];
+
+    const totalGroups = await prisma.group.count({
+      where: {
+        groupName: groupNameFilter, isPublic: isPublicFilter,
+      },
+    });
+
+    const totalPage = Math.ceil(totalGroups / pageSize);
 
     const groups = await prisma.group.findMany({
-      where: {
-        groupName: keyword ? { contains: keyword.toLowerCase() } : undefined,
-        isPublic: isPublicFilter,
-      },
+      where: { groupName: groupNameFilter, isPublic: isPublicFilter },
       select: {
         groupId: true,
         groupName: true,
@@ -133,9 +158,11 @@ groupRouter.get("/", async (req, res, next) => {
         },
       },
       orderBy,
+      skip: (pageNumber - 1) * pageSize,
+      take: pageSize,
     });
 
-    let formattedGroups = groups.map(group => ({
+    const formattedGroups = groups.map(group => ({
       groupId: group.groupId,
       groupName: group.groupName,
       isPublic: group.isPublic,
@@ -149,7 +176,14 @@ groupRouter.get("/", async (req, res, next) => {
       formattedGroups.sort((a, b) => b.likeCount - a.likeCount);
     }
 
-    res.status(200).json(createResponse("success", "그룹 목록 조회 성공", formattedGroups));
+    res.status(200).json(createResponse("success", "그룹 목록 조회 성공", {
+      currentPage: pageNumber,
+      totalPage,
+      pageSize,
+      totalGroups,
+      groups: formattedGroups,
+    }
+    ));
   } catch (error) {
     next(error);
   }
@@ -159,27 +193,30 @@ groupRouter.get("/", async (req, res, next) => {
 groupRouter.patch("/:groupId", upload.single("groupImage"), async (req, res, next) => {
   try {
     const groupId = Number(req.params.groupId);
-    const userId = Number(req.user.id);
-
-    if (!userId) {
-      return res.status(401).json(createResponse("unauthorized", "유저 정보가 없습니다. 로그인 후 이용해주세요.", {}));
-    }
+    const userId = req.user.id;
 
     const membership = await prisma.groupMember.findUnique({
       where: { groupId_userId: { groupId, userId } },
       select: { role: true },
     });
 
+    if (!userId) {
+      return res.status(401).json(createResponse("unauthorized", "유저 정보가 없습니다. 로그인 후 이용해주세요.", {}));
+    }
+
     if (!membership || membership.role !== "ADMIN") {
       return res.status(403).json(createResponse("forbidden", "관리자만 그룹을 수정할 수 있습니다.", {}));
     }
 
-    let updateData = {};
-    if (req.body.name !== undefined) updateData.groupName = req.body.name;
-    if (req.body.isPublic !== undefined) {
-      updateData.isPublic = req.body.isPublic === "true" || req.body.isPublic === true;
+    let jsonData;
+    if (req.body.data) {
+      jsonData = JSON.parse(req.body.data);
     }
-    if (req.body.introduction !== undefined) updateData.groupDescription = req.body.introduction;
+
+    let updateData = {};
+    if (jsonData?.name !== undefined) updateData.groupName = jsonData.name;
+    if (jsonData?.isPublic !== undefined) updateData.isPublic = jsonData.isPublic === "true" || jsonData.isPublic === true;
+    if (jsonData?.introduction !== undefined) updateData.groupDescription = jsonData.introduction;
 
     const group = await prisma.group.findUnique({
       where: { groupId },
@@ -252,7 +289,7 @@ groupRouter.delete("/:groupId/image", async (req, res, next) => {
 groupRouter.delete("/:groupId", async (req, res, next) => {
   try {
     const groupId = parseInt(req.params.groupId);
-    const userId = req.user?.id;
+    const userId = req.user.id;
 
     if (!userId) {
       return res.status(401).json(createResponse("unauthorized", "유저 정보가 없습니다. 로그인 후 이용해주세요.", {}));
@@ -288,7 +325,6 @@ groupRouter.delete("/:groupId", async (req, res, next) => {
 
     res.status(200).json(createResponse("success", "그룹이 성공적으로 삭제되었습니다.", {}));
   } catch (error) {
-    console.error("🔥 그룹 삭제 오류:", error);
     next(error);
   }
 });
@@ -338,7 +374,7 @@ groupRouter.post("/:groupId/verify-password", async (req, res, next) => {
 });
 
 // 10. 그룹 가입
-groupRouter.post("/:groupId/join", authenticateByToken, async (req, res, next) => {
+groupRouter.post("/:groupId/join", async (req, res, next) => {
   try {
     const groupId = Number(req.params.groupId);
     const userId = req.user.id;
@@ -379,7 +415,7 @@ groupRouter.post("/:groupId/join", authenticateByToken, async (req, res, next) =
 });
 
 // 11. 그룹 탈퇴
-groupRouter.delete("/:groupId/leave", authenticateByToken, async (req, res, next) => {
+groupRouter.delete("/:groupId/leave", async (req, res, next) => {
   try {
     const groupId = Number(req.params.groupId);
     const userId = req.user.id;
@@ -413,7 +449,7 @@ groupRouter.delete("/:groupId/leave", authenticateByToken, async (req, res, next
       });
 
       if (adminCount <= 1) {
-        return res.status(400).json(createResponse("bad_request", "마지막 관리자는 탈퇴할 수 없습니다.", {}));
+        return res.status(400).json(createResponse("bad_request", "관리자는 탈퇴할 수 없습니다.", {}));
       }
     }
 
@@ -423,7 +459,6 @@ groupRouter.delete("/:groupId/leave", authenticateByToken, async (req, res, next
 
     res.status(200).json(createResponse("success", "그룹을 탈퇴하였습니다.", {}));
   } catch (error) {
-    console.error(`❌ 그룹 탈퇴 중 오류 발생: ${error.message}`);
     next(error);
   }
 });
