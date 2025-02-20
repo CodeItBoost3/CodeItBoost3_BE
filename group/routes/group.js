@@ -100,7 +100,12 @@ groupRouter.get("/:groupId", async (req, res, next) => {
       include: { members: true, posts: true }
     });
 
-    if (!group) return res.status(404).json({ status: "not_found", message: "존재하지 않는 그룹입니다." });
+    if (!group) {
+      return res.status(404).json({ status: "not_found", message: "존재하지 않는 그룹입니다." });
+    }
+
+    const totalLikeCount = group.groupLikeCount + group.posts.reduce((sum, post) => sum + post.likeCount, 0);
+
     res.status(200).json({
       status: "success",
       message: "그룹 상세 조회 성공",
@@ -109,7 +114,7 @@ groupRouter.get("/:groupId", async (req, res, next) => {
         dday: calculateDday(group.createdAt),
         memberCount: group.members.length,
         postCount: group.posts.length,
-        likeCount: group.posts.reduce((sum, post) => sum + post.likeCount, 0),
+        totalLikeCount, // 편리한 구별을 위해 likeCount에서 totalLikeCount로 필드명을 변경했습니다! 그룹 자체 공감은 groupLikeCount입니다.
         publicPosts: group.posts.filter(post => post.isPublic),
         privatePosts: group.posts.filter(post => !post.isPublic),
       },
@@ -458,6 +463,34 @@ groupRouter.delete("/:groupId/leave", async (req, res, next) => {
     });
 
     res.status(200).json(createResponse("success", "그룹을 탈퇴하였습니다.", {}));
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 12. 그룹 자체 공감
+groupRouter.post("/:groupId/like", async (req, res, next) => {
+
+  try {
+    const userId = req.user?.id;
+    const groupId = Number(req.params.groupId);
+
+    if (!userId) {
+      return res.status(401).json({ status: "unauthorized", message: "로그인이 필요합니다." });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.groupLike.create({
+        data: { userId, groupId },
+      });
+
+      await tx.group.update({
+        where: { groupId },
+        data: { groupLikeCount: { increment: 1 } },
+      });
+    });
+
+    res.status(201).json({ status: "success", message: "그룹에 공감을 추가했습니다." });
   } catch (error) {
     next(error);
   }
