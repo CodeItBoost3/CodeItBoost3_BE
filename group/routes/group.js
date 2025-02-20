@@ -435,7 +435,7 @@ groupRouter.post("/:groupId/join", async (req, res, next) => {
       },
     });
 
-    await updateBadgesForGroup(groupId);
+    await updateBadgesForGroup(prisma, parseInt(groupId));
 
     res.status(201).json(createResponse("success", "그룹에 가입되었습니다.", newMembership));
   } catch (error) {
@@ -514,7 +514,7 @@ groupRouter.post("/:groupId/like", async (req, res, next) => {
       });
     });
 
-    await updateBadgesForGroup(prisma, groupId);
+    await updateBadgesForGroup(prisma, parseInt(groupId));
 
     res.status(201).json({ status: "success", message: "그룹에 공감하였습니다." });
   } catch (error) {
