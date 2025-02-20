@@ -16,6 +16,7 @@ import postRouter from './post/routes/post.js';
 import commentRouter from "./comment/routes/comment.js";
 import scrapRouter from "./scrap/routes/scrap.js";
 import groupRouter from "./group/routes/group.js"
+import promptRoutes from "./services/routes/prompt.js";
 import { sseRouter } from './config/sse.js';
 import { errorHandler } from './error/error.js';
 import { authenticateByToken } from './auth/routes/authToken.js';
@@ -26,14 +27,14 @@ import { checkDBConnection } from './config/db.js';
 
 // 1. 동기적 에러 처리 (예상치 못한 예외)
 process.on('uncaughtException', (err) => {
-    console.error('❌ Uncaught Exception:', err.message);
-    console.error(err.stack); // 에러의 전체 스택 트레이스를 로그에 출력
+  console.error('❌ Uncaught Exception:', err.message);
+  console.error(err.stack); // 에러의 전체 스택 트레이스를 로그에 출력
 });
 
 // 2. 비동기적 에러 처리 (처리되지 않은 Promise 거부)
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('❌ Unhandled Rejection at:', promise);
-    console.error('🚨 Reason:', reason);
+  console.error('❌ Unhandled Rejection at:', promise);
+  console.error('🚨 Reason:', reason);
 });
 
 
@@ -102,6 +103,7 @@ app.use("/api", postRouter);
 app.use("/api", commentRouter);
 app.use("/api", scrapRouter);
 app.use("/sse", sseRouter);
+app.use("/prompt", promptRoutes);
 
 // 에러 핸들러(마지막에 위치 해야함)
 app.use(errorHandler());
