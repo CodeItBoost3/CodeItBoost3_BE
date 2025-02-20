@@ -15,7 +15,7 @@ export const badgeNames = {
   MEMBER_20: "멤버 20명 모으기",
   MEMBER_30: "멤버 30명 모으기",
   MEMBER_40: "멤버 40명 모으기",
-  MEMBER_50: "멤버 50명 돌파기",
+  MEMBER_50: "멤버 50명 모으기",
   MEMORY_10: "추억 10개 등록하기",
   MEMORY_20: "추억 20개 등록하기",
   MEMORY_30: "추억 30개 등록하기",
