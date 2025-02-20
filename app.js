@@ -16,7 +16,7 @@ import postRouter from './post/routes/post.js';
 import commentRouter from "./comment/routes/comment.js";
 import scrapRouter from "./scrap/routes/scrap.js";
 import groupRouter from "./group/routes/group.js"
-import promptRoutes from "./services/routes/prompt.js";
+import promptRoutes from "./services/chatgptService.js";
 import { sseRouter } from './config/sse.js';
 import { errorHandler } from './error/error.js';
 import { authenticateByToken } from './auth/routes/authToken.js';
