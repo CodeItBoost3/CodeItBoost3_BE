@@ -76,7 +76,7 @@ export async function updateBadgesForGroup(prisma, groupId) {
       await prisma.badge.create({
         data: {
           groupId,
-          badgeType: latestBadge, // ✅ 이제 String으로 저장 가능!
+          badgeType: latestBadge,
           badgeName: badgeNames[latestBadge] || "다양한 활동으로 새로운 배지를 얻어보세요!",
         },
       });
