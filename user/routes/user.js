@@ -274,7 +274,7 @@ userRouter.get('/me', wrapAsync(async (req, res, next) => {
         createdAt: true,
         likeCount: true,
         commentCount: true,
-
+        imageUrl: true,
         author: {
           select: {
             nickname: true,
