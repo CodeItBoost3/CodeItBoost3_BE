@@ -209,7 +209,7 @@ userRouter.get('/me', wrapAsync(async (req, res, next) => {
     });
     const totalPages = Math.ceil(totalItemCount / take);
     if (totalPages == 0) {
-      return res.send(createResponse('success', '작성한 추억이 존재하지 않습니다.', {
+      return res.send(createResponse('success', '소속된 그룹이 존재하지 않습니다.', {
         groups: [],
         currentPage: parseInt(page),
         totalPages,
@@ -240,7 +240,7 @@ userRouter.get('/me', wrapAsync(async (req, res, next) => {
       totalPages,
     }));
   }))
-// --------------------------------
+
   .get('/me/posts', wrapAsync(async (req, res) => {
     const userId = req.user.id
     const { page = '1', pageSize = '5' } = req.query
