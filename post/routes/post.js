@@ -83,6 +83,7 @@ router.post("/groups/:groupId/posts", upload.single("image"), async (req, res, n
 
     await updateBadgesForGroup(prisma, parseInt(groupId));
 
+
     res.status(201).json(createResponse("success", "게시글이 등록되었습니다.", newPost));
   } catch (error) {
     console.error(error);
@@ -139,6 +140,16 @@ router.get("/groups/:groupId/posts", async (req, res, next) => {
       }
     });
 
+    //  각 게시물마다 commentCount 조회
+    const postsWithCommentCount = await Promise.all(
+      posts.map(async (post) => {
+        const commentCount = await prisma.comment.count({
+          where: { postId: post.postId },
+        });
+        return { ...post, commentCount };
+      })
+    );
+    
     const totalItemCount = await prisma.post.count({ where: whereClause });
     const totalPages = Math.ceil(totalItemCount / take);
 
@@ -147,7 +158,7 @@ router.get("/groups/:groupId/posts", async (req, res, next) => {
         currentPage: parseInt(page),
         totalPages,
         totalItemCount,
-        data: posts,
+        data: postsWithCommentCount
       })
     );
   } catch (error) {
@@ -186,8 +197,14 @@ router.get("/posts/:postId", async (req, res, next) => {
       return res.status(404).json(createResponse("fail", "해당 게시글을 찾을 수 없습니다.", {}));
     }
 
+    //댓글 개수 실시간 조회
+    const commentCount = await prisma.comment.count({
+      where: { postId: parseInt(postId) },
+    });
+
     // 응답 반환
-    return res.status(200).json(createResponse("success", "게시글 조회 성공", post));
+    return res.status(200).json(createResponse("success", "게시글 조회 성공", { ...post, commentCount})
+    );
   } catch (error) {
     console.error(error);
     next(error);
@@ -253,7 +270,13 @@ router.put("/posts/:postId", upload.single("image"), async (req, res, next) => {
       },
     });
 
-    return res.status(200).json(createResponse("success", "게시글이 수정되었습니다.", updatedPost));
+    //  게시물의 댓글 개수 조회 추가
+    const commentCount = await prisma.comment.count({
+      where: { postId: parseInt(postId) },
+    });
+
+    return res.status(200).json(createResponse("success", "게시글이 수정되었습니다.",{ ...updatedPost, commentCount,})
+  );
   } catch (error) {
     console.error(error);
     next(error);
@@ -318,7 +341,10 @@ router.post("/posts/:postId/like", async (req, res, next) => {
     // 게시물 존재 여부 확인
     const existingPost = await prisma.post.findUnique({
       where: { postId: parseInt(postId) },
+      select: { groupId: true },
     });
+
+    const { groupId } = existingPost; // groupId 가져오기
 
     if (!existingPost) {
       return res.status(404).json({ status: "fail", message: "존재하지 않는 게시글입니다." });
