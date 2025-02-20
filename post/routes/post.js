@@ -129,11 +129,8 @@ router.get("/groups/:groupId/posts", async (req, res, next) => {
       skip,
       take,
       include: {
-        author: {
-          select: {
-            nickname: true
-          }
-        }
+        author: { select: { nickname: true } }, // 닉네임만 가져오기
+        _count: { select: { comments: true } }, // Prisma에서 댓글 개수 가져오기
       },
       omit: {
         userId: true
@@ -141,14 +138,13 @@ router.get("/groups/:groupId/posts", async (req, res, next) => {
     });
 
     //  각 게시물마다 commentCount 조회
-    const postsWithCommentCount = await Promise.all(
-      posts.map(async (post) => {
-        const commentCount = await prisma.comment.count({
-          where: { postId: post.postId },
-        });
-        return { ...post, commentCount };
-      })
-    );
+    const postsWithCommentCount = posts.map(post => {
+      const { _count, ...rest } = post; // `_count` 필드를 제외하고 나머지 데이터 유지
+      return {
+        ...rest,
+        commentCount: _count.comments // `_count.comments` 값을 `commentCount`로 변경
+      };
+    });
     
     const totalItemCount = await prisma.post.count({ where: whereClause });
     const totalPages = Math.ceil(totalItemCount / take);
@@ -158,7 +154,7 @@ router.get("/groups/:groupId/posts", async (req, res, next) => {
         currentPage: parseInt(page),
         totalPages,
         totalItemCount,
-        data: postsWithCommentCount
+        data: postsWithCommentCount,
       })
     );
   } catch (error) {
@@ -180,11 +176,8 @@ router.get("/posts/:postId", async (req, res, next) => {
     const post = await prisma.post.findUnique({
       where: { postId: parseInt(postId) },
       include: {
-        author: {
-          select: {
-            nickname: true
-          }
-        }
+        author: { select: { nickname: true } }, // 작성자 닉네임 포함
+        _count: { select: { comments: true } } // 댓글 개수 포함
       },
       omit: {
         userId: true
@@ -197,13 +190,15 @@ router.get("/posts/:postId", async (req, res, next) => {
       return res.status(404).json(createResponse("fail", "해당 게시글을 찾을 수 없습니다.", {}));
     }
 
-    //댓글 개수 실시간 조회
-    const commentCount = await prisma.comment.count({
-      where: { postId: parseInt(postId) },
-    });
+    // `_count.comments` 값을 `commentCount`로 변환하여 응답에 포함
+    const { _count, ...postData } = post; // `_count` 필드를 제외하고 나머지 데이터 유지
+    const postWithCommentCount = {
+      ...postData,
+      commentCount: _count.comments, // `_count.comments` 값을 `commentCount`로 변경
+    };
 
     // 응답 반환
-    return res.status(200).json(createResponse("success", "게시글 조회 성공", { ...post, commentCount})
+    return res.status(200).json(createResponse("success", "게시글 조회 성공", postWithCommentCount)
     );
   } catch (error) {
     console.error(error);
