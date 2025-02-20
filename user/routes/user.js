@@ -195,6 +195,52 @@ userRouter.get('/me', wrapAsync(async (req, res, next) => {
     }
   }))
 
+  .get('/me/groups', wrapAsync(async (req, res) => {
+    const userId = req.user.id
+    const { page = '1', pageSize = '5' } = req.query
+
+    const orderBy = { joinedAt: 'desc' }
+    const take = parseInt(pageSize);
+    const skip = (parseInt(page) - 1) * take;
+
+
+    const totalItemCount = await prisma.groupMember.count({
+      where: { userId }
+    });
+    const totalPages = Math.ceil(totalItemCount / take);
+    if (totalPages == 0) {
+      return res.send(createResponse('success', '작성한 추억이 존재하지 않습니다.', {
+        groups: [],
+        currentPage: parseInt(page),
+        totalPages,
+      }));
+    }
+    if (totalPages < parseInt(page)) {
+      throw new CustomError(404, '존재하지 않는 페이지 입니다.');
+    }
+    const groups = await prisma.groupMember.findMany({
+      where: { userId },
+      select: {
+        role: true,
+        joinedAt: true,
+        group: {
+          omit:{
+            groupPassword: true,
+          }
+        }
+      },
+      orderBy,
+      take,
+      skip
+    });
+
+    res.send(createResponse('success', '내가 소속한 그룹 목록을 불러왔습니다.', {
+      groups,
+      currentPage: parseInt(page),
+      totalPages,
+    }));
+  }))
+// --------------------------------
   .get('/me/posts', wrapAsync(async (req, res) => {
     const userId = req.user.id
     const { page = '1', pageSize = '5' } = req.query
@@ -220,6 +266,7 @@ userRouter.get('/me', wrapAsync(async (req, res, next) => {
     }
     const posts = await prisma.post.findMany({
       select: {
+        postId: true,
         title: true,
         content: true,
         tag: true,
@@ -235,6 +282,7 @@ userRouter.get('/me', wrapAsync(async (req, res, next) => {
         },
         group: {
           select: {
+            groupId: true,
             groupName: true,
             isPublic: true,
           }
@@ -279,11 +327,13 @@ userRouter.get('/me', wrapAsync(async (req, res, next) => {
     }
     const comments = await prisma.comment.findMany({
       select: {
+        commentId: true,
         content: true,
         createdAt: true,
         likeCount: true,
         post: {
           select: {
+            groupId: true,
             postId: true,
             title: true,
           }
