@@ -5,7 +5,7 @@ import { CreateGroupStruct, UpdateGroupStruct } from "../groupStructs.js";
 import { assert } from "superstruct";
 import { upload } from '../../config/multer.js';
 import { deleteFromS3, uploadToS3 } from '../../config/s3.js';
-import { calculateDday } from "../utils/groupUtils.js";
+import { calculateDday, updateBadgesForGroup } from "../utils/groupUtils.js";
 
 const groupRouter = express.Router();
 
@@ -97,7 +97,16 @@ groupRouter.get("/:groupId", async (req, res, next) => {
   try {
     const group = await prisma.group.findUnique({
       where: { groupId: parseInt(req.params.groupId) },
-      include: { members: true, posts: true }
+      include: {
+        members: true,
+        posts: true,
+        badges: {
+          select: {
+            badgeType: true,
+            badgeName: true,
+          },
+        },
+      }
     });
 
     if (!group) {
@@ -105,6 +114,18 @@ groupRouter.get("/:groupId", async (req, res, next) => {
     }
 
     const totalLikeCount = group.groupLikeCount + group.posts.reduce((sum, post) => sum + post.likeCount, 0);
+
+    const highestBadges = {
+      LIKE: null,
+      MEMBER: null,
+      MEMORY: null,
+    };
+
+    for (const badge of group.badges) {
+      if (badge.badgeType.startsWith("LIKE_")) highestBadges.LIKE = badge;
+      if (badge.badgeType.startsWith("MEMBER_")) highestBadges.MEMBER = badge;
+      if (badge.badgeType.startsWith("MEMORY_")) highestBadges.MEMORY = badge;
+    }
 
     res.status(200).json({
       status: "success",
@@ -117,6 +138,7 @@ groupRouter.get("/:groupId", async (req, res, next) => {
         totalLikeCount, // 편리한 구별을 위해 likeCount에서 totalLikeCount로 필드명을 변경했습니다! 그룹 자체 공감은 groupLikeCount입니다.
         publicPosts: group.posts.filter(post => post.isPublic),
         privatePosts: group.posts.filter(post => !post.isPublic),
+        badges: Object.values(highestBadges).filter(Boolean),
       },
     });
   } catch (error) {
@@ -413,6 +435,8 @@ groupRouter.post("/:groupId/join", async (req, res, next) => {
       },
     });
 
+    await updateBadgesForGroup(groupId);
+
     res.status(201).json(createResponse("success", "그룹에 가입되었습니다.", newMembership));
   } catch (error) {
     next(error);
@@ -490,7 +514,9 @@ groupRouter.post("/:groupId/like", async (req, res, next) => {
       });
     });
 
-    res.status(201).json({ status: "success", message: "그룹에 공감을 추가했습니다." });
+    await updateBadgesForGroup(prisma, groupId);
+
+    res.status(201).json({ status: "success", message: "그룹에 공감하였습니다." });
   } catch (error) {
     next(error);
   }

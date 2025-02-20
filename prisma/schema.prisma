@@ -157,23 +157,16 @@ enum GroupRole {
 }
 
 model Badge {
-  badgeId   Int       @id @default(autoincrement())
-  groupId   Int       @map("group_id")
-  id        String    @unique @default(uuid()) @map("id")
-  badgeName String    @map("badge_name") @db.VarChar(32)
-  badgeType BadgeType @map("badge_type")
-  createdAt DateTime  @default(now()) @map("created_at")
+  badgeId   Int      @id @default(autoincrement())
+  groupId   Int      @map("group_id")
+  badgeName String   @map("badge_name") @db.VarChar(32)
+  badgeType String   @map("badge_type")
+  createdAt DateTime @default(now()) @map("created_at")
 
   group Group @relation(fields: [groupId], references: [groupId], onDelete: Cascade)
 
   @@unique([groupId, badgeType])
   @@map("badge")
-}
-
-enum BadgeType {
-  MEMORY_20
-  GROUP_1YEAR
-  LIKE_10000
 }
 
 enum Role {

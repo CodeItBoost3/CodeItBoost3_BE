@@ -4,6 +4,7 @@ import { assert } from "superstruct";
 import { createPost } from "../postStructs.js";
 import { upload } from "../../config/multer.js";
 import { deleteFromS3, uploadToS3 } from "../../config/s3.js";
+import { updateBadgesForGroup } from "../../group/utils/groupUtils.js";
 
 
 
@@ -26,38 +27,38 @@ router.post("/groups/:groupId/posts", upload.single("image"), async (req, res, n
     // 요청 데이터 검증
     assert(req.body, createPost);
 
-    const { groupId } = req.params; 
-    const { title, content, tag, location, moment} = req.body;
+    const { groupId } = req.params;
+    const { title, content, tag, location, moment } = req.body;
     const userId = req.user?.id;
 
     if (!groupId || isNaN(groupId)) {
       return res.status(400).json(createResponse("fail", "잘못된 요청입니다.", {}));
     }
-    
+
     if (!req.file) {
       return res.status(400).json(createResponse("fail", "이미지를 업로드해주세요.", {}));
     }
-    
 
-     // S3 업로드 처리
-     const path = "post_images";
-     const safeFileName = Buffer.from(req.file.originalname, "utf8").toString("hex");
-     const fileKey = `${path}/${Date.now()}-${safeFileName}`;
-     await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
-     const imageUrl = `${process.env.AWS_CLOUD_FRONT_URL}/${fileKey}`;
+
+    // S3 업로드 처리
+    const path = "post_images";
+    const safeFileName = Buffer.from(req.file.originalname, "utf8").toString("hex");
+    const fileKey = `${path}/${Date.now()}-${safeFileName}`;
+    await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
+    const imageUrl = `${process.env.AWS_CLOUD_FRONT_URL}/${fileKey}`;
 
     // userId 검증: DB에서 사용자가 존재하는지 확인
     let user = await prisma.user.findUnique({
-      where: { id : userId },  
+      where: { id: userId },
       select: { id: true, nickname: true },
     });
 
     if (!user) {
       return res.status(400).json(createResponse("fail", "유효하지 않은 사용자입니다.", {}));
     }
-    
-    
-    
+
+
+
     // 존재하는 유저라면 게시물 등록
     const newPost = await prisma.post.create({
       data: {
@@ -74,11 +75,14 @@ router.post("/groups/:groupId/posts", upload.single("image"), async (req, res, n
         author: {
           connect: { id: user.id }
         },
-         group:{
-          connect: { groupId: parseInt(groupId)}
+        group: {
+          connect: { groupId: parseInt(groupId) }
         }
       },
     });
+
+    const groupIdToUpdate = existingPost?.group?.groupId || groupId;
+    await updateBadgesForGroup(prisma, groupIdToUpdate);
 
     res.status(201).json(createResponse("success", "게시글이 등록되었습니다.", newPost));
   } catch (error) {
@@ -124,14 +128,14 @@ router.get("/groups/:groupId/posts", async (req, res, next) => {
       orderBy,
       skip,
       take,
-      include:{
+      include: {
         author: {
-          select:{
+          select: {
             nickname: true
           }
         }
       },
-      omit:{
+      omit: {
         userId: true
       }
     });
@@ -165,14 +169,14 @@ router.get("/posts/:postId", async (req, res, next) => {
     //  게시물 조회
     const post = await prisma.post.findUnique({
       where: { postId: parseInt(postId) },
-      include:{
+      include: {
         author: {
-          select:{
+          select: {
             nickname: true
           }
         }
       },
-      omit:{
+      omit: {
         userId: true
       }
     });
@@ -229,14 +233,14 @@ router.put("/posts/:postId", upload.single("image"), async (req, res, next) => {
         await deleteFromS3(existingPost.imageUrl.replace(process.env.AWS_CLOUD_FRONT_URL + "/", ""));
       }
 
-     const path = "post_images";
-     const safeFileName = Buffer.from(req.file.originalname, "utf8").toString("hex");
-     const fileKey = `${path}/${Date.now()}-${safeFileName}`;
-     await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
-     updatedImageUrl = `${process.env.AWS_CLOUD_FRONT_URL}/${fileKey}`;
+      const path = "post_images";
+      const safeFileName = Buffer.from(req.file.originalname, "utf8").toString("hex");
+      const fileKey = `${path}/${Date.now()}-${safeFileName}`;
+      await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
+      updatedImageUrl = `${process.env.AWS_CLOUD_FRONT_URL}/${fileKey}`;
     }
 
-    
+
     // 게시물 업데이트
     const updatedPost = await prisma.post.update({
       where: { postId: parseInt(postId) },
@@ -293,7 +297,7 @@ router.delete("/posts/:postId", async (req, res, next) => {
 
     // 게시물 삭제
     await prisma.post.delete({
-      where: { postId: parseInt(postId) },  
+      where: { postId: parseInt(postId) },
     });
 
     return res.status(200).json({ status: "success", message: "게시글 삭제 성공" });
@@ -325,9 +329,11 @@ router.post("/posts/:postId/like", async (req, res, next) => {
     await prisma.post.update({
       where: { postId: parseInt(postId) },
       data: {
-        likeCount: { increment: 1 },  
+        likeCount: { increment: 1 },
       },
     });
+
+    await updateBadgesForGroup(prisma, groupId);
 
     return res.status(200).json({ status: "success", message: "게시글 공감하기 성공" });
   } catch (error) {
