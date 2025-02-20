@@ -81,8 +81,7 @@ router.post("/groups/:groupId/posts", upload.single("image"), async (req, res, n
       },
     });
 
-    const groupIdToUpdate = existingPost?.group?.groupId || groupId;
-    await updateBadgesForGroup(prisma, groupIdToUpdate);
+    await updateBadgesForGroup(prisma, parseInt(groupId));
 
     res.status(201).json(createResponse("success", "게시글이 등록되었습니다.", newPost));
   } catch (error) {
