@@ -8,6 +8,10 @@ import { CustomError } from '../../error/error.js';
 import { upload } from '../../config/multer.js';
 import { deleteFromS3, uploadToS3 } from '../../config/s3.js';
 import moment from 'moment-timezone';
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const iconv = require("iconv-lite");
+
 
 const userRouter = express.Router();
 
@@ -131,7 +135,10 @@ userRouter.get('/me', wrapAsync(async (req, res, next) => {
 
     const file = req.file;
     const path = "profile_image";
-    const safeFileName = Buffer.from(file.originalname, "utf8").toString("hex");
+    // ISO-8859-1 → UTF-8 변환
+    const utf8FileName = iconv.decode(Buffer.from(file.originalname, "binary"), "ISO-8859-1");
+    // UTF-8로 변환된 한글을 Hex 인코딩
+    const safeFileName = Buffer.from(utf8FileName, "utf8").toString("hex");
     const fileKey = `${path}/${Date.now()}-${safeFileName}`;
 
 
@@ -388,7 +395,8 @@ userRouter.get('/me', wrapAsync(async (req, res, next) => {
             title: true,
             content: true,
             type: true,
-            postId: true
+            postId: true,
+            groupId: true,
           }
         }
       },
@@ -396,10 +404,11 @@ userRouter.get('/me', wrapAsync(async (req, res, next) => {
       skip,
       orderBy,
     });
-
+    console.log(notifications)
     // 데이터 변환: 필요한 필드만 남기고, 시간 포맷 변경
     const transformedNotifications = notifications.map(notification => ({
       id: notification.id,
+      groupId: notification.message.groupId,
       time: moment(notification.message.createdAt).format("YYYY-MM-DD HH:mm:ss"),
       title: notification.message.title,
       content: notification.message.content,
