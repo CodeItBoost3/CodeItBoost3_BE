@@ -51,7 +51,9 @@ router.get("/scraps", async (req, res, next) => {
       } else if (sortBy === "mostCommented") {
         orderBy = { post: { commentCount: "desc" } }; // 댓글 많은 순
       }
-  
+
+
+
       // 스크랩한 게시물 목록 조회 (스크랩한 게시물의 정보도 포함)
       const scraps = await prisma.scrap.findMany({
         where: whereClause,
@@ -59,10 +61,27 @@ router.get("/scraps", async (req, res, next) => {
         skip,
         take,
         include: {
-          post: true, 
-        },
-      });
-  
+          post: {
+              include: {
+                  _count: { select: { comments: true } }, // 댓글 개수 포함
+              }
+          }
+      },
+  });
+  const scrapsWithCommentCount = scraps.map(scrap => {
+    const { _count, ...postData } = scrap.post; // ✅ `_count` 필드 제거
+    return {
+        scrapId: scrap.id, //  Scrap ID 추가
+        userId: scrap.userId, //  Scrap한 사용자 ID 추가
+        postId: scrap.postId, //  Scrap된 게시물 ID 추가
+        createdAt: scrap.createdAt, //  Scrap한 날짜 추가
+        post: {
+            ...postData,
+            commentCount: _count.comments, // `_count.comments`를 `commentCount`로 변경
+        }
+    };
+});
+      
       const totalItemCount = await prisma.scrap.count({ where: whereClause });
       const totalPages = Math.ceil(totalItemCount / take);
   
@@ -71,7 +90,7 @@ router.get("/scraps", async (req, res, next) => {
           currentPage: parseInt(page),
           totalPages,
           totalItemCount,
-          data: scraps,
+          data: scrapsWithCommentCount,
         })
       );
     } catch (error) {
@@ -123,16 +142,27 @@ router.get("/scraps/post/:postId", async (req, res, next) => {
           userId: parseInt(userId),
           postId: parseInt(postId),
         },
-        include: {
-          post: true,
+          include: {
+            post: {
+                include: {
+                    _count: { select: { comments: true } }, // 댓글 개수 포함
+                }
+            }
         },
-      });
-  
+    });
+
+
       if (!scrap) {
         return res.status(404).json(createResponse("fail", "스크랩한 게시물이 아닙니다.", {}));
       }
+
+      const { _count, ...postData } = scrap.post;
+        const postWithCommentCount = {
+            ...postData,
+            commentCount: _count.comments,
+        };
   
-      return res.status(200).json(createResponse("success", "스크랩한 게시물 상세 조회 성공", scrap.post));
+      return res.status(200).json(createResponse("success", "스크랩한 게시물 상세 조회 성공", postWithCommentCount));
     } catch (error) {
       console.error(error);
       next(error);
