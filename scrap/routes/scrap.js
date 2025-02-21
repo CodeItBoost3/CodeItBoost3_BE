@@ -63,6 +63,7 @@ router.get("/scraps", async (req, res, next) => {
         include: {
           post: {
               include: {
+                author: { select: { nickname: true } }, // 작성자 닉네임 포함
                   _count: { select: { comments: true } }, // 댓글 개수 포함
               }
           }
@@ -145,6 +146,7 @@ router.get("/scraps/post/:postId", async (req, res, next) => {
           include: {
             post: {
                 include: {
+                  author: { select: { nickname: true } }, // 작성자 닉네임 포함
                     _count: { select: { comments: true } }, // 댓글 개수 포함
                 }
             }
