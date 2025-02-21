@@ -8,25 +8,24 @@ datasource db {
 }
 
 model User {
-  id              Int      @id @default(autoincrement())
-  role            Role     @default(USER)
+  id              Int            @id @default(autoincrement())
+  role            Role           @default(USER)
   nickname        String
   password        String
-  clientId        String   @unique @map("client_id")
-  profileImageUrl String?  @map("profile_image_url")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-
-  posts         Post[]         @relation("UserPosts")
-  scraps        Scrap[]
-  comments      Comment[]
-  commentLikes  CommentLike[]
-  notification  Notification[]
-  joined_groups GroupMember[]
+  clientId        String         @unique @map("client_id")
+  profileImageUrl String?        @map("profile_image_url")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  comments        Comment[]
+  commentLikes    CommentLike[]
+  joined_groups   GroupMember[]
+  notification    Notification[]
+  posts           Post[]         @relation("UserPosts")
+  scraps          Scrap[]
 }
 
 model Post {
-  postId       Int      @id @default(autoincrement())
+  postId       Int       @id @default(autoincrement())
   groupId      Int
   userId       Int
   nickname     String
@@ -35,15 +34,17 @@ model Post {
   imageUrl     String?
   location     String
   moment       DateTime
-  createdAt    DateTime @default(now())
-  likeCount    Int      @default(0)
-  commentCount Int      @default(0)
+  createdAt    DateTime  @default(now())
+  likeCount    Int       @default(0)
+  commentCount Int       @default(0)
   tag          Json
+  comments     Comment[]
+  group        Group     @relation(fields: [groupId], references: [groupId], onDelete: Cascade)
+  author       User      @relation("UserPosts", fields: [userId], references: [id], onDelete: Cascade)
+  scraps       Scrap[]
 
-  author   User      @relation("UserPosts", fields: [userId], references: [id], onDelete: Cascade)
-  group    Group     @relation(fields: [groupId], references: [groupId], onDelete: Cascade)
-  comments Comment[]
-  scraps   Scrap[]
+  @@index([groupId], map: "Post_groupId_fkey")
+  @@index([userId], map: "Post_userId_fkey")
 }
 
 model Scrap {
@@ -51,29 +52,33 @@ model Scrap {
   userId    Int
   postId    Int
   createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post Post @relation(fields: [postId], references: [postId], onDelete: Cascade)
-
-  @@unique([userId, postId]) // 같은 사용자가 같은 게시글을 두 번 스크랩할 수 없게 설정
+  @@unique([userId, postId])
+  @@index([postId], map: "Scrap_postId_fkey")
 }
 
 model Comment {
-  commentId Int      @id @default(autoincrement())
-  content   String
-  userId    Int
-  postId    Int
-  parentId  Int?
-  nickname  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  likeCount Int      @default(0)
+  commentId       Int           @id @default(autoincrement())
+  content         String
+  userId          Int
+  postId          Int
+  parentId        Int?
+  nickname        String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  likeCount       Int           @default(0)
+  profileImageUrl String?
+  parent          Comment?      @relation("CommentReplies", fields: [parentId], references: [commentId], onDelete: Cascade)
+  replies         Comment[]     @relation("CommentReplies")
+  post            Post          @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id])
+  likes           CommentLike[]
 
-  user    User          @relation(fields: [userId], references: [id])
-  post    Post          @relation(fields: [postId], references: [postId], onDelete: Cascade)
-  parent  Comment?      @relation("CommentReplies", fields: [parentId], references: [commentId], onDelete: Cascade)
-  replies Comment[]     @relation("CommentReplies")
-  likes   CommentLike[]
+  @@index([parentId], map: "Comment_parentId_fkey")
+  @@index([postId], map: "Comment_postId_fkey")
+  @@index([userId], map: "Comment_userId_fkey")
 }
 
 model CommentLike {
@@ -81,53 +86,51 @@ model CommentLike {
   userId    Int
   commentId Int
   createdAt DateTime @default(now())
-
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  comment Comment @relation(fields: [commentId], references: [commentId], onDelete: Cascade)
+  comment   Comment  @relation(fields: [commentId], references: [commentId], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, commentId])
+  @@index([commentId], map: "CommentLike_commentId_fkey")
 }
 
 model Notification {
-  id        Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   userId    Int
   messageId Int
-
-  reciever  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now()) @map("created_at")
   isRead    Boolean  @default(false) @map("is_read")
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  reciever  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, messageId])
+  @@index([messageId], map: "Notification_messageId_fkey")
 }
 
 model Message {
-  id        Int         @id @default(autoincrement())
-  title     String
-  type      MessageType
-  postId    Int?        @map("post_id")
-  commentId Int?        @map("comment_id")
-  content   String
-  createdAt DateTime    @default(now()) @map("created_at")
-
+  id           Int            @id @default(autoincrement())
+  title        String
+  type         MessageType
+  postId       Int?           @map("post_id")
+  commentId    Int?           @map("comment_id")
+  content      String
+  createdAt    DateTime       @default(now()) @map("created_at")
   notification Notification[]
 }
 
 model Group {
-  groupId          Int      @id @default(autoincrement())
-  groupName        String   @unique
+  groupId          Int           @id @default(autoincrement())
+  groupName        String        @unique
   groupPassword    String?
   groupDescription String?
-  groupLikeCount   Int      @default(0)
-  isPublic         Boolean  @default(true)
-  createdAt        DateTime @default(now())
+  isPublic         Boolean       @default(true)
+  createdAt        DateTime      @default(now())
   imageUrl         String?
-  badgeCount       Int      @default(0)
-
-  members    GroupMember[]
-  posts      Post[]
-  badges     Badge[]
-  groupLikes GroupLike[]
+  badgeCount       Int           @default(0)
+  groupLikeCount   Int           @default(0)
+  groupLikes       GroupLike[]
+  members          GroupMember[]
+  posts            Post[]
+  badges           Badge[]
 }
 
 model GroupLike {
@@ -135,8 +138,9 @@ model GroupLike {
   userId    Int
   groupId   Int
   createdAt DateTime @default(now())
+  group     Group    @relation(fields: [groupId], references: [groupId])
 
-  group Group @relation(fields: [groupId], references: [groupId])
+  @@index([groupId], map: "GroupLike_groupId_fkey")
 }
 
 model GroupMember {
@@ -151,22 +155,21 @@ model GroupMember {
   @@index([userId], map: "GroupMember_userId_fkey")
 }
 
-enum GroupRole {
-  MEMBER
-  ADMIN
-}
-
 model Badge {
   badgeId   Int      @id @default(autoincrement())
   groupId   Int      @map("group_id")
   badgeName String   @map("badge_name") @db.VarChar(32)
   badgeType String   @map("badge_type")
   createdAt DateTime @default(now()) @map("created_at")
-
-  group Group @relation(fields: [groupId], references: [groupId], onDelete: Cascade)
+  group     Group    @relation(fields: [groupId], references: [groupId], onDelete: Cascade)
 
   @@unique([groupId, badgeType])
   @@map("badge")
+}
+
+enum GroupRole {
+  MEMBER
+  ADMIN
 }
 
 enum Role {
