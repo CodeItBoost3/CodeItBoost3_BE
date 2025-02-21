@@ -107,6 +107,7 @@ model Notification {
 }
 
 model Message {
+<<<<<<< HEAD
   id           Int            @id @default(autoincrement())
   title        String
   type         MessageType
@@ -114,6 +115,17 @@ model Message {
   commentId    Int?           @map("comment_id")
   content      String
   createdAt    DateTime       @default(now()) @map("created_at")
+=======
+  id        Int         @id @default(autoincrement())
+  title     String
+  type      MessageType
+  groupId   Int?        @map("group_id")
+  postId    Int?        @map("post_id")
+  commentId Int?        @map("comment_id")
+  content   String
+  createdAt DateTime    @default(now()) @map("created_at")
+
+>>>>>>> c348a7d57cc9be4bd4665c6bdf4ee5a6e031ea0b
   notification Notification[]
 }
 
@@ -178,6 +190,6 @@ enum Role {
 }
 
 enum MessageType {
-  POST
-  COMMENT
+  COMMENT_CREATED
+  REPLY_CREATED
 }

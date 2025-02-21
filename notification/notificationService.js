@@ -11,10 +11,13 @@ export function registerNotificationHandler() {
     try {
       const post = await prisma.post.findUnique({
         where: { postId },
-        include: {
+        select:{
+          groupId: true,
           author: { select: { id: true, nickname: true } }
+
         }
       });
+      const groupId = post.groupId;
 
       if (!post) {
         console.log(`⚠️ 게시글 ${postId}을 찾을 수 없음`);
@@ -33,6 +36,7 @@ export function registerNotificationHandler() {
           title: '📢 내 추억 글에 새로운 댓글이 달렸어요!',
           content,
           postId,
+          groupId,
           notification: { create: { userId: receiver } }
         },
         include: { notification: true }
@@ -81,6 +85,7 @@ export function registerNotificationHandler() {
           type: 'REPLY_CREATED',
           title: '📢 내 댓글에 새로운 답글이 달렸어요!',
           content,
+          groupId,
           postId,
           notification: { create: { userId: receiver } }
         },
