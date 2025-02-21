@@ -92,6 +92,11 @@ commentRouter.post(
       // 사용자 존재 확인
       const user = await prisma.user.findUnique({
         where: { id: parseInt(userId) },
+        select: {
+          id: true,
+          nickname: true,
+          profileImageUrl: true,
+        },
       });
 
       if (!user) {
@@ -116,15 +121,23 @@ commentRouter.post(
       // 댓글 생성
       const comment = await prisma.comment.create({
         data: {
-          content: content.trim(), // 앞뒤 공백 제거
+          content: content.trim(),
           userId: parseInt(userId),
           postId: parseInt(postId),
           parentId: parentId ? parseInt(parentId) : null,
           nickname: user.nickname,
         },
+        include: {
+          author: {
+            select: {
+              nickname: true,
+              profileImageUrl: true,
+            },
+          },
+        },
       });
 
-      // 댓글/대댓글 작성 이벤트 발생
+      // 댓글/대댓글 작성
       if (parentId) {
         eventBus.emit("reply_created", {
           postId: parseInt(postId),
@@ -132,8 +145,7 @@ commentRouter.post(
           commenterId: userId,
           content: comment.content,
         });
-      }
-      else {
+      } else {
         eventBus.emit("comment_created", {
           postId: parseInt(postId),
           commenterId: userId,
@@ -188,9 +200,21 @@ commentRouter.get("/posts/:postId/comments", async (req, res) => {
         replies: {
           include: {
             likes: true,
+            author: {
+              select: {
+                nickname: true,
+                profileImageUrl: true,
+              },
+            },
           },
         },
         likes: true,
+        author: {
+          select: {
+            nickname: true,
+            profileImageUrl: true,
+          },
+        },
       },
       skip,
       take: parseInt(pageSize),
@@ -259,6 +283,14 @@ commentRouter.put(
         },
         data: {
           content,
+        },
+        include: {
+          author: {
+            select: {
+              nickname: true,
+              profileImageUrl: true,
+            },
+          },
         },
       });
 
