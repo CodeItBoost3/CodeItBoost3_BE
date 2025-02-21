@@ -28,7 +28,6 @@ model Post {
   postId       Int       @id @default(autoincrement())
   groupId      Int
   userId       Int
-  nickname     String
   title        String
   content      String
   imageUrl     String?
@@ -107,15 +106,6 @@ model Notification {
 }
 
 model Message {
-<<<<<<< HEAD
-  id           Int            @id @default(autoincrement())
-  title        String
-  type         MessageType
-  postId       Int?           @map("post_id")
-  commentId    Int?           @map("comment_id")
-  content      String
-  createdAt    DateTime       @default(now()) @map("created_at")
-=======
   id        Int         @id @default(autoincrement())
   title     String
   type      MessageType
@@ -125,7 +115,6 @@ model Message {
   content   String
   createdAt DateTime    @default(now()) @map("created_at")
 
->>>>>>> c348a7d57cc9be4bd4665c6bdf4ee5a6e031ea0b
   notification Notification[]
 }
 
