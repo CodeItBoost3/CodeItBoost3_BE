@@ -128,7 +128,7 @@ commentRouter.post(
           nickname: user.nickname,
         },
         include: {
-          author: {
+          user: {
             select: {
               nickname: true,
               profileImageUrl: true,
@@ -200,7 +200,7 @@ commentRouter.get("/posts/:postId/comments", async (req, res) => {
         replies: {
           include: {
             likes: true,
-            author: {
+            user: {
               select: {
                 nickname: true,
                 profileImageUrl: true,
@@ -209,7 +209,7 @@ commentRouter.get("/posts/:postId/comments", async (req, res) => {
           },
         },
         likes: true,
-        author: {
+        user: {
           select: {
             nickname: true,
             profileImageUrl: true,
@@ -285,7 +285,7 @@ commentRouter.put(
           content,
         },
         include: {
-          author: {
+          user: {
             select: {
               nickname: true,
               profileImageUrl: true,
