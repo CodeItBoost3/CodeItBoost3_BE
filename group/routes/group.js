@@ -197,6 +197,7 @@ groupRouter.get("/", async (req, res, next) => {
       postCount: group.posts.length,
       likeCount: group.posts.reduce((sum, post) => sum + post.likeCount, 0),
       imageUrl: group.isPublic ? group.imageUrl : null,
+      badgeCount: group.badgeCount,
     }));
 
     if (sortBy === "mostLiked") {

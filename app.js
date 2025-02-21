@@ -90,6 +90,10 @@ app.use(
         { url: "/api/groups/:groupId/posts", methods: ["GET"] }, // 게시글 목록 조회
         { url: "/api/posts/:postId", methods: ["GET"] }, // 게시글 상세 조회
         { url: "/api/posts/:postId/is-public", methods: ["GET"] }, // 게시글 공개 유무 조회
+
+        { url: "/api/groups", methods: ["GET"] },
+        { url: "/api/groups/search", methods: ["GET"] },
+        /^\/api\/groups\/\d+\/is-public$/  // 동적 경로를 위해 정규식 사용했음
       ],
     })
   )
