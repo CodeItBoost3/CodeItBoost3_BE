@@ -105,6 +105,7 @@ model Message {
   id        Int         @id @default(autoincrement())
   title     String
   type      MessageType
+  groupId   Int?        @map("group_id")
   postId    Int?        @map("post_id")
   commentId Int?        @map("comment_id")
   content   String
@@ -175,6 +176,6 @@ enum Role {
 }
 
 enum MessageType {
-  POST
-  COMMENT
+  COMMENT_CREATED
+  REPLY_CREATED
 }
