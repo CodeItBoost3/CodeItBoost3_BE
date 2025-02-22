@@ -62,6 +62,7 @@ router.post("/groups/:groupId/posts", upload.single("image"), async (req, res, n
     // 존재하는 유저라면 게시물 등록
     const newPost = await prisma.post.create({
       data: {
+        nickname: user.nickname,
         title,
         content,
         imageUrl,
